@@ -1,6 +1,6 @@
 from redbot.core import commands
 
-class Test (commands.Cog):
+class Kolbaska (commands.Cog):
     """отправляет колбаску"""
 
     def __init__(self, bot):

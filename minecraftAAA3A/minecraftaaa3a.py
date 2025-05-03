@@ -20,7 +20,7 @@ from redbot.core.utils.chat_formatting import box, pagify
 # General repo credits.
 # Thanks to Fixator for the code to get informations about Minecraft servers (https://github.com/fixator10/Fixator10-Cogs/blob/V3/minecraftdata/minecraftdata.py)!
 
-_: Translator = Translator("Minecraft", __file__)
+_: Translator = Translator("MinecraftAAA3A", __file__)
 
 
 class MCPlayer:
@@ -34,7 +34,7 @@ class MCPlayer:
 
     @classmethod
     async def convert(cls, ctx: commands.Context, argument: str) -> typing_extensions.Self:
-        cog = ctx.bot.get_cog("Minecraftaaa3a")
+        cog = ctx.bot.get_cog("MinecraftAAA3A")
         try:
             async with cog._session.get(
                 f"https://api.mojang.com/users/profiles/minecraft/{argument}",
@@ -62,7 +62,7 @@ class MCPlayer:
 
 
 @cog_i18n(_)
-class Minecraftaaa3a(Cog):
+class MinecraftAAA3A(Cog):
     """A cog to display informations about Minecraft Java users and servers, and notify for each change of a server!"""
 
     def __init__(self, bot: Red) -> None:

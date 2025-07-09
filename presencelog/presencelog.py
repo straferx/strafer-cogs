@@ -32,7 +32,6 @@ class PresenceLog(commands.Cog):
         if not settings["enabled"]:
             return
 
-        # Prepare updates
         updates = []
 
         if before.status != after.status:
@@ -51,7 +50,6 @@ class PresenceLog(commands.Cog):
         if not updates:
             return
 
-        # Buffer the update per guild
         self.presence_updates.setdefault(guild.id, []).extend(updates)
 
     @tasks.loop(seconds=15)
@@ -84,9 +82,11 @@ class PresenceLog(commands.Cog):
 
             self.presence_updates[guild_id] = []
 
+    # === ALL CONFIG COMMANDS BELOW STAY INSIDE THE CLASS ===
+
     @commands.group()
     @commands.guild_only()
-    async def presencelog(self, ctx: commands.Context):
+    async def presence(self, ctx: commands.Context):
         """Configure presence logging."""
         pass
 

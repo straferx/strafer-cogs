@@ -82,9 +82,7 @@ class PresenceLog(commands.Cog):
 
             self.presence_updates[guild_id] = []
 
-    # ======================
-    # Configuration Commands
-    # ======================
+    # === ALL CONFIG COMMANDS BELOW STAY INSIDE THE CLASS ===
 
     @commands.group()
     @commands.guild_only()

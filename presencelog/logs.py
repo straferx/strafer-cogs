@@ -6,7 +6,7 @@ import datetime
 from typing import Dict, List
 
 
-class PresenceLogger(commands.Cog):
+class PresenceLog(commands.Cog):
     """Log presence and activity updates of members."""
 
     def __init__(self, bot: Red):
@@ -86,7 +86,7 @@ class PresenceLogger(commands.Cog):
 
     @commands.group()
     @commands.guild_only()
-    async def presence(self, ctx: commands.Context):
+    async def presence_log(self, ctx: commands.Context):
         """Configure presence logging."""
         pass
 

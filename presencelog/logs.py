@@ -32,7 +32,6 @@ class PresenceLog(commands.Cog):
         if not settings["enabled"]:
             return
 
-        # Prepare updates
         updates = []
 
         if before.status != after.status:
@@ -51,7 +50,6 @@ class PresenceLog(commands.Cog):
         if not updates:
             return
 
-        # Buffer the update per guild
         self.presence_updates.setdefault(guild.id, []).extend(updates)
 
     @tasks.loop(seconds=15)
@@ -84,26 +82,30 @@ class PresenceLog(commands.Cog):
 
             self.presence_updates[guild_id] = []
 
-@commands.group()
-@commands.guild_only()
-async def presence(self, ctx: commands.Context):
-    """Configure presence logging."""
-    pass
+    # ======================
+    # Configuration Commands
+    # ======================
 
-@presence.command()
-async def enable(self, ctx: commands.Context):
-    """Enable presence logging."""
-    await self.config.guild(ctx.guild).enabled.set(True)
-    await ctx.send("✅ Presence logging enabled.")
+    @commands.group()
+    @commands.guild_only()
+    async def presence(self, ctx: commands.Context):
+        """Configure presence logging."""
+        pass
 
-@presence.command()
-async def disable(self, ctx: commands.Context):
-    """Disable presence logging."""
-    await self.config.guild(ctx.guild).enabled.set(False)
-    await ctx.send("❌ Presence logging disabled.")
+    @presence.command()
+    async def enable(self, ctx: commands.Context):
+        """Enable presence logging."""
+        await self.config.guild(ctx.guild).enabled.set(True)
+        await ctx.send("✅ Presence logging enabled.")
 
-@presence.command(name="setchannel")
-async def set_channel(self, ctx: commands.Context, channel: discord.TextChannel):
-    """Set the channel where presence logs will be sent."""
-    await self.config.guild(ctx.guild).log_channel.set(channel.id)
-    await ctx.send(f"📋 Presence log channel set to {channel.mention}.")
+    @presence.command()
+    async def disable(self, ctx: commands.Context):
+        """Disable presence logging."""
+        await self.config.guild(ctx.guild).enabled.set(False)
+        await ctx.send("❌ Presence logging disabled.")
+
+    @presence.command(name="setchannel")
+    async def set_channel(self, ctx: commands.Context, channel: discord.TextChannel):
+        """Set the channel where presence logs will be sent."""
+        await self.config.guild(ctx.guild).log_channel.set(channel.id)
+        await ctx.send(f"📋 Presence log channel set to {channel.mention}.")

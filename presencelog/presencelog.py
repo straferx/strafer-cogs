@@ -72,7 +72,7 @@ class PresenceLog(commands.Cog):
                 for chunk in chunks:
                     embed = discord.Embed(
                         description="\n".join(chunk),
-                        color=discord.Color.blurple(),
+                        color=discord.Color.2b2d31(),
                         timestamp=datetime.datetime.utcnow()
                     )
                     await channel.send(embed=embed)

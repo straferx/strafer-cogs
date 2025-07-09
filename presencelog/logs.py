@@ -86,7 +86,7 @@ class PresenceLog(commands.Cog):
 
     @commands.group()
     @commands.guild_only()
-    async def presence_log(self, ctx: commands.Context):
+    async def presencelog(self, ctx: commands.Context):
         """Configure presence logging."""
         pass
 

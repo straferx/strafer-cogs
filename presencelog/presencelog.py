@@ -71,7 +71,6 @@ class PresenceLog(commands.Cog):
                 chunks = [updates[i:i + 10] for i in range(0, len(updates), 10)]
                 for chunk in chunks:
                     embed = discord.Embed(
-                        title="🔄 Presence Updates",
                         description="\n".join(chunk),
                         color=discord.Color.blurple(),
                         timestamp=datetime.datetime.utcnow()

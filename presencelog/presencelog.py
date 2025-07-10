@@ -4,7 +4,7 @@ from redbot.core.bot import Red
 from discord.ext import tasks
 import datetime
 from typing import Dict, List
-
+from zoneinfo import ZoneInfo
 
 class PresenceLog(commands.Cog):
     """Log presence and activity updates of members."""
@@ -41,9 +41,11 @@ class PresenceLog(commands.Cog):
             discord.Status.offline: "`⚫` offline"
                         }
 
+        moscow_time = datetime.datetime.now(ZoneInfo("Europe/Moscow")).strftime("%H:%M:%S")
+
         if before.status != after.status:
             updates.append(
-                f"**`🎭` {after.name} ({after.mention}):** **{status_emojis.get(before.status, before.status.name)} → {status_emojis.get(after.status, after.status.name)}**"
+                f"**`🎭` [{moscow_time}] 👤{after.name} ({after.mention}):** **{status_emojis.get(before.status, before.status.name)} → {status_emojis.get(after.status, after.status.name)}**"
             )
 
 
@@ -52,7 +54,7 @@ class PresenceLog(commands.Cog):
 
         if before_act != after_act:
             updates.append(
-                f"**`🎮` {after.name} ({after.mention}):** **{before_act or '`-`'} → {after_act or '`-`'}**"
+                f"**`🎮` [{moscow_time}] 👤{after.name} ({after.mention}):** **{before_act or '`-`'} → {after_act or '`-`'}**"
             )
 
         if not updates:

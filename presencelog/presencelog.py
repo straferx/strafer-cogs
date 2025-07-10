@@ -44,7 +44,7 @@ class PresenceLog(commands.Cog):
 
         if before_act != after_act:
             updates.append(
-                f"{after.mention}** `🎮` **{before_act or '-'} → {after_act or '-'}**"
+                f"{after.mention} `🎮` **{before_act or '`-`'} → {after_act or '`-`'}**"
             )
 
         if not updates:

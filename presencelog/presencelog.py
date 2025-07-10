@@ -34,10 +34,18 @@ class PresenceLog(commands.Cog):
 
         updates = []
 
+        status_emojis = {
+            discord.Status.online: "`🟢` online",
+            discord.Status.idle: "`🟡` idle",
+            discord.Status.dnd: "`🔴` dnd",
+            discord.Status.offline: "`⚫` offline"
+                        }
+
         if before.status != after.status:
             updates.append(
-                f"`🎭` {after.name} ({after.mention}): **{before.status.name} → {after.status.name}**"
+                f"🎭 {after.name} ({after.mention}): **{status_emojis.get(before.status, before.status.name)} → {status_emojis.get(after.status, after.status.name)}**"
             )
+
 
         before_act = before.activities[0].name if before.activities else None
         after_act = after.activities[0].name if after.activities else None

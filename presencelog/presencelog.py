@@ -36,7 +36,7 @@ class PresenceLog(commands.Cog):
 
         if before.status != after.status:
             updates.append(
-                f"🟢 **{after.mention}** changed status: `{before.status.name}` → `{after.status.name}`"
+                f"🟢 **{after.display_name}({after.mention})** changed status: `{before.status.name}` → `{after.status.name}`"
             )
 
         before_act = before.activities[0].name if before.activities else None
@@ -44,7 +44,7 @@ class PresenceLog(commands.Cog):
 
         if before_act != after_act:
             updates.append(
-                f"🎮 **{after.mention}** changed activity: `{before_act or '-'}` → `{after_act or '-'}`"
+                f"🎮 **{after.display_name}({after.mention})** changed activity: `{before_act or '-'}` → `{after_act or '-'}`"
             )
 
         if not updates:

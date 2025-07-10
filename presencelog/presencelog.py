@@ -83,7 +83,6 @@ class PresenceLog(commands.Cog):
                     embed = discord.Embed(
                         description="\n".join(chunk),
                         color=discord.Color(0x36393F),
-                        timestamp=datetime.datetime.utcnow()
                     )
                     await channel.send(embed=embed)
             except Exception as e:

@@ -43,7 +43,7 @@ class PresenceLog(commands.Cog):
 
         if before.status != after.status:
             updates.append(
-                f"🎭 {after.name} ({after.mention}): **{status_emojis.get(before.status, before.status.name)} → {status_emojis.get(after.status, after.status.name)}**"
+                f"`🎭` {after.name} ({after.mention}): **{status_emojis.get(before.status, before.status.name)} → {status_emojis.get(after.status, after.status.name)}**"
             )
 
 

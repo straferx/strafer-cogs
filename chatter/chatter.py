@@ -188,7 +188,8 @@ class Chatter(commands.Cog):
                 skipped_short += 1
                 continue
             self._train(content)
-            async with aiosqlite.connect(self.db_path) as db:
+            db_path = self.data_path / f"messages_{ctx.guild.id}.db"
+        async with aiosqlite.connect(db_path) as db:
                 await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
             count += 1
 

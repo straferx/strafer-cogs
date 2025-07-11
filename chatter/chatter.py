@@ -23,7 +23,7 @@ class Chatter(commands.Cog):
             feed_channels=[]
         )
         self.data_path = cog_data_path(self)
-        self.data_path / f"messages_{ctx.guild.id}.db"s: Dict[int, str] = {}  # guild_id -> db path
+        self.db_paths: Dict[int, str] = {}  # guild_id -> db path
         self.model: Dict[str, List[str]] = {}
         self.message_count: int = 0
         self.bot.loop.create_task(self._load_model())

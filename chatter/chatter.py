@@ -158,7 +158,7 @@ class Chatter(commands.Cog):
         word_count = sum(len(v) for v in self.model.values())
         node_count = len(self.model)
         memory_usage = psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024
-        db_size = os.path.getsize(db_path) / 1024 / 1024 if db_path.exists() else 0)
+        db_size = os.path.getsize((db_path) / 1024 / 1024 if db_path.exists() else 0)
         embed.add_field(name="Messages", value=f"{self.message_count:,} (this guild)")
         embed.add_field(name="Nodes", value=f"{node_count:,}")
         embed.add_field(name="Words", value=f"{word_count:,}")

@@ -120,9 +120,6 @@ class Chatter(commands.Cog):
             await message.channel.send(reply)
 
         # Do NOT consume messages unless this is a configured feed channel
-        return
-            reply = self._generate_message()
-            await message.channel.send(reply)
 
     @commands.group()
     async def chatter(self, ctx: commands.Context):

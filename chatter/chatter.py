@@ -19,24 +19,20 @@ class Chatter(commands.Cog):
         self.config.register_guild(
             chance=5,
             excluded_channels=[],
-            log_channel=None
+            log_channel=None,
+            feed_channels=[]
         )
         self.data_path = cog_data_path(self)
-        self.db_path = self.data_path / "messages.db"
+        self.db_paths: Dict[int, str] = {}  # guild_id -> db path
         self.model: Dict[str, List[str]] = {}
         self.message_count: int = 0
         self.bot.loop.create_task(self._load_model())
 
     async def _load_model(self):
         self.data_path.mkdir(parents=True, exist_ok=True)
-        async with aiosqlite.connect(self.db_path) as db:
-            await db.execute("""
-                CREATE TABLE IF NOT EXISTS messages (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    content TEXT
-                )
-            """)
-            await db.commit()
+        for folder in self.data_path.glob("messages_*.db"):
+            guild_id = int(folder.stem.replace("messages_", ""))
+            self.db_paths[guild_id] = str(folder)
 
             async with db.execute("SELECT content FROM messages") as cursor:
                 async for row in cursor:
@@ -67,6 +63,35 @@ class Chatter(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
+        if not message.guild:
+            return
+        guild_id = message.guild.id
+        db_path = self.data_path / f"messages_{guild_id}.db"
+        self.db_paths[guild_id] = str(db_path)
+        db_path_str = str(db_path)
+        self.data_path.mkdir(parents=True, exist_ok=True)
+
+        async with aiosqlite.connect(db_path_str) as db:
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    content TEXT
+                )
+            """)
+            await db.commit()
+        # Persistent feedchannels
+        guild = message.guild
+        if guild:
+            conf = await self.config.guild(guild).all()
+            feed_channels = conf.get("feed_channels", [])
+            if message.channel.id in feed_channels and not message.author.bot:
+                content = message.clean_content.strip()
+                if len(content.split()) >= 3:
+                    self._train(content)
+                    async with aiosqlite.connect(str(self.data_path / f"messages_{ctx.guild.id}.db")) as db:
+                        await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
+                        await db.commit()
+                    self.message_count += 1
         if not message.guild or message.author.bot:
             return
 
@@ -81,6 +106,7 @@ class Chatter(commands.Cog):
             self._train(content)
             async with aiosqlite.connect(self.db_path) as db:
                 await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
+                await db.commit()
                 await db.commit()
             self.message_count += 1
 
@@ -126,14 +152,14 @@ class Chatter(commands.Cog):
 
     @chatter.command()
     async def stats(self, ctx: commands.Context):
-        """Show statistics about the chatter model and memory usage."""
+        """Show statistics about the chatter model and memory usage for this guild."""
+        guild_id = ctx.guild.id
+        db_path = self.data_path / f"messages_{guild_id}.db"
         word_count = sum(len(v) for v in self.model.values())
         node_count = len(self.model)
         memory_usage = psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024
-        db_size = os.path.getsize(self.db_path) / 1024 / 1024 if self.db_path.exists() else 0
-
-        embed = discord.Embed(title="🧠 Chatter Stats", color=discord.Color.green())
-        embed.add_field(name="Messages", value=f"{self.message_count:,}")
+        db_size = os.path.getsize(db_path) / 1024 / 1024 if db_path.exists() else 0)
+        embed.add_field(name="Messages", value=f"{self.message_count:,} (this guild)")
         embed.add_field(name="Nodes", value=f"{node_count:,}")
         embed.add_field(name="Words", value=f"{word_count:,}")
         embed.add_field(name="Memory", value=f"{memory_usage:.2f} MB")
@@ -173,23 +199,54 @@ class Chatter(commands.Cog):
         self.message_count += count
         try:
             await progress_msg.edit(content=(
-                f"✅ Trained on {count} messages from {channel.mention} (limit: {amount})."
+                f"✅ Trained on {count} messages from {channel.mention} (limit: {amount}).
+"
                 f"⛔ Skipped: {skipped_bots} bot messages, {skipped_short} too short."
             ))
         except discord.HTTPException:
             await ctx.send(
-                f"✅ Trained on {count} messages from {channel.mention} (limit: {amount})."
+                f"✅ Trained on {count} messages from {channel.mention} (limit: {amount}).
+"
                 f"⛔ Skipped: {skipped_bots} bot messages, {skipped_short} too short."
             )
 
     @chatter.command()
     @commands.has_permissions(administrator=True)
-    async def export(self, ctx: commands.Context):
+    async def feedchannels(self, ctx: commands.Context, *channels: discord.TextChannel):
+        """Start or stop live training on specified channels (or clear if none)."""
+        conf = self.config.guild(ctx.guild)
+
+        if not channels:
+            await conf.feed_channels.set([])
+            await ctx.send("🛑 Live feed channels cleared. The bot will no longer consume messages.")
+            return
+
+        channel_ids = [ch.id for ch in channels]
+        await conf.feed_channels.set(channel_ids)
+        await ctx.send(f"📡 I will now listen and train from: {', '.join(ch.mention for ch in channels)}")
+
+        @self.bot.listen("on_message")
+        async def _feedlistener(msg: discord.Message):
+            if msg.channel.id not in [ch.id for ch in channels]:
+                return
+            if msg.author.bot:
+                return
+            content = msg.clean_content.strip()
+            if len(content.split()) < 3:
+                return
+            self._train(content)
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
+                await db.commit()
+            self.message_count += 1
+
+self, ctx: commands.Context):
         """Export the chatter training database as a file attachment."""
-        if not self.db_path.exists():
+        db_path = self.data_path / f"messages_{ctx.guild.id}.db"
+        if not db_path.exists():
             await ctx.send("❌ Database file does not exist.")
             return
-        await ctx.send("📦 Exporting database...", file=discord.File(self.db_path, filename="messages.db"))
+        await ctx.send("📦 Exporting database...", file=discord.File(db_path, filename=f"messages_{ctx.guild.id}.db"))
 
     @chatter.command()
     @commands.has_permissions(administrator=True)
@@ -220,9 +277,10 @@ class Chatter(commands.Cog):
             await ctx.send("❌ Timed out. Database was not reset.")
             return
 
-        if self.db_path.exists():
-            await log_channel.send("📁 Backup before reset:", file=discord.File(self.db_path, filename="messages_backup.db"))
-            os.remove(self.db_path)
+        db_path = self.data_path / f"messages_{ctx.guild.id}.db"
+        if db_path.exists():
+            await log_channel.send("📁 Backup before reset:", file=discord.File(db_path, filename=f"messages_{ctx.guild.id}_backup.db"))
+            os.remove(db_path)
 
         self.model.clear()
         self.message_count = 0

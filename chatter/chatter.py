@@ -120,9 +120,6 @@ class Chatter(commands.Cog):
         if random.randint(1, 100) <= conf["chance"]:
             reply = self._generate_message()
             await message.channel.send(reply)
-
-        # Do NOT consume messages unless this is a configured feed channel
-        return
             return
 
         if random.randint(1, 100) <= conf["chance"]:

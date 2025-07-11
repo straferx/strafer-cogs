@@ -173,10 +173,10 @@ class Chatter(commands.Cog):
         self.message_count += count
         try:
             await progress_msg.edit(content=(
-                f"✅ Trained on {count} messages from {channel.mention} (limit: {amount}).
-"
-                f"⛔ Skipped: {skipped_bots} bot messages, {skipped_short} too short."
-            ))
+            f"✅ Trained on {count} messages from {channel.mention} (limit: {amount}).\n"
+            f"⛔ Skipped: {skipped_bots} bot messages, {skipped_short} too short."
+        ))
+
         except discord.HTTPException:
             await ctx.send(
                 f"✅ Trained on {count} messages from {channel.mention} (limit: {amount}).

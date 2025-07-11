@@ -26,7 +26,7 @@ class LatinDictionary(commands.Cog):
         for word in raw_words:
             result = await self._get_word_definition(word)
             all_results.append((word, result))
-            await asyncio.sleep(0.2)  # avoid rate-limiting
+            await asyncio.sleep(0.2)
 
         # Build formatted output
         pages = []
@@ -64,7 +64,6 @@ class LatinDictionary(commands.Cog):
                     else:
                         structural_senses.append(definition)
 
-                # Prioritize definitions with translations
                 lines = translated_senses[:3] + structural_senses[:3 - len(translated_senses[:3])]
 
                 if lines:
@@ -74,8 +73,11 @@ class LatinDictionary(commands.Cog):
 
         # Send result(s)
         if len(pages) == 1:
+            word = raw_words[0]
+            wiktionary_url = f"https://en.wiktionary.org/wiki/{word}#Latin"
             embed = discord.Embed(
-                title=f"Latin Dictionary: `{raw_words[0]}`",
+                title=f'Dictionary – "{word}"',
+                url=wiktionary_url,
                 description=pages[0],
                 color=discord.Color(0x36393F)
             )
@@ -83,8 +85,11 @@ class LatinDictionary(commands.Cog):
         else:
             embeds = []
             for i, page in enumerate(pages, start=1):
+                word = all_results[i - 1][0]
+                wiktionary_url = f"https://en.wiktionary.org/wiki/{word}#Latin"
                 embed = discord.Embed(
-                    title="Latin Dictionary Results",
+                    title=f'Dictionary – "{word}"',
+                    url=wiktionary_url,
                     description=page,
                     color=discord.Color(0x36393F)
                 )

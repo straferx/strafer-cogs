@@ -169,23 +169,32 @@ class Chatter(commands.Cog):
         await ctx.send(f"📋 Log channel set to {channel.mention}.")
 
     @chatter.command()
-    @commands.has_permissions(administrator=True)
-    async def reset(self, ctx: commands.Context):
-        class ConfirmResetModal(Modal, title="Reset Chatter Database"):
-            confirm_input = TextInput(label="Type exactly: yes, reset the database", placeholder="yes, reset the database")
+@commands.has_permissions(administrator=True)
+async def reset(self, ctx: commands.Context):
+    """Reset the chatter database after confirmation."""
+    await ctx.send("⚠️ Are you sure you want to reset the chatter database?\nType `yes, reset the database` to confirm.")
 
-            async def on_submit(self, interaction: discord.Interaction):
-                if self.confirm_input.value.strip().lower() == "yes, reset the database":
-                    backup_file = discord.File(self.db_path, filename="messages_backup.db") if self.db_path.exists() else None
-                    log_channel_id = await self.config.guild(ctx.guild).log_channel()
-                    log_channel = ctx.guild.get_channel(log_channel_id) if log_channel_id else ctx.channel
-                    if backup_file:
-                        await log_channel.send("📁 Backup before reset:", file=backup_file)
-                        os.remove(self.db_path)
-                    self.model.clear()
-                    self.message_count = 0
-                    await interaction.response.send_message("🧹 Database has been reset.", ephemeral=True)
-                else:
-                    await interaction.response.send_message("❌ Confirmation failed. Database not reset.", ephemeral=True)
+    def check(m):
+        return (
+            m.author == ctx.author
+            and m.channel == ctx.channel
+            and m.content.lower().strip() == "yes, reset the database"
+        )
 
-        await ctx.send_modal(ConfirmResetModal())
+    try:
+        msg = await self.bot.wait_for("message", check=check, timeout=30)
+    except asyncio.TimeoutError:
+        await ctx.send("❌ Timed out. Database was not reset.")
+        return
+
+    # Backup and delete
+    backup_file = discord.File(self.db_path, filename="messages_backup.db") if self.db_path.exists() else None
+    log_channel_id = await self.config.guild(ctx.guild).log_channel()
+    log_channel = ctx.guild.get_channel(log_channel_id) if log_channel_id else ctx.channel
+    if backup_file:
+        await log_channel.send("📁 Backup before reset:", file=backup_file)
+        os.remove(self.db_path)
+
+    self.model.clear()
+    self.message_count = 0
+    await ctx.send("🧹 Database has been reset.")

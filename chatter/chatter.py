@@ -8,6 +8,7 @@ from typing import Dict, List
 import re
 import os
 import psutil
+from discord.ui import Modal, TextInput, View
 
 class Chatter(commands.Cog):
     """A chat simulator that learns from user messages and occasionally replies."""
@@ -17,7 +18,8 @@ class Chatter(commands.Cog):
         self.config = Config.get_conf(self, identifier=20250711, force_registration=True)
         self.config.register_guild(
             chance=5,
-            excluded_channels=[]
+            excluded_channels=[],
+            log_channel=None
         )
         self.data_path = cog_data_path(self)
         self.db_path = self.data_path / "messages.db"
@@ -74,7 +76,6 @@ class Chatter(commands.Cog):
         if message.channel.id in excluded:
             return
 
-        # Train on every normal message
         content = message.clean_content.strip()
         if len(content.split()) >= 3:
             self._train(content)
@@ -83,7 +84,6 @@ class Chatter(commands.Cog):
                 await db.commit()
             self.message_count += 1
 
-        # Reply if bot is mentioned or replied to
         mentioned = self.bot.user in message.mentions
         replied = message.reference and message.reference.resolved and message.reference.resolved.author == self.bot.user
 
@@ -92,7 +92,6 @@ class Chatter(commands.Cog):
             await message.channel.send(reply)
             return
 
-        # Random chance reply (if configured)
         if random.randint(1, 100) <= conf["chance"]:
             reply = self._generate_message()
             await message.channel.send(reply)
@@ -103,8 +102,8 @@ class Chatter(commands.Cog):
         pass
 
     @chatter.command()
+    @commands.has_permissions(administrator=True)
     async def channelexclude(self, ctx: commands.Context):
-        """Toggle this channel to be excluded from chatter replies."""
         cid = ctx.channel.id
         conf = self.config.guild(ctx.guild)
         current = await conf.excluded_channels()
@@ -117,15 +116,14 @@ class Chatter(commands.Cog):
         await conf.excluded_channels.set(current)
 
     @chatter.command()
+    @commands.has_permissions(administrator=True)
     async def chance(self, ctx: commands.Context, percent: int):
-        """Set the chance (0-100) the bot replies randomly."""
         percent = max(0, min(100, percent))
         await self.config.guild(ctx.guild).chance.set(percent)
         await ctx.send(f"📊 Random reply chance set to {percent}%.")
 
     @chatter.command()
     async def stats(self, ctx: commands.Context):
-        """View chatter model stats."""
         word_count = sum(len(v) for v in self.model.values())
         node_count = len(self.model)
         memory_usage = psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024
@@ -140,8 +138,8 @@ class Chatter(commands.Cog):
         await ctx.send(embed=embed)
 
     @chatter.command()
+    @commands.has_permissions(administrator=True)
     async def feed(self, ctx: commands.Context, channel: discord.TextChannel):
-        """Feed messages from a channel into the chatter (up to 5000)."""
         await ctx.send(f"📥 Reading messages from {channel.mention}...")
         count = 0
         async for msg in channel.history(limit=5000, oldest_first=True):
@@ -155,3 +153,39 @@ class Chatter(commands.Cog):
                 count += 1
         self.message_count += count
         await ctx.send(f"✅ Trained on {count} messages from {channel.mention}.")
+
+    @chatter.command()
+    @commands.has_permissions(administrator=True)
+    async def export(self, ctx: commands.Context):
+        if not self.db_path.exists():
+            await ctx.send("❌ Database file does not exist.")
+            return
+        await ctx.send("📦 Exporting database...", file=discord.File(self.db_path, filename="messages.db"))
+
+    @chatter.command()
+    @commands.has_permissions(administrator=True)
+    async def logchannel(self, ctx: commands.Context, channel: discord.TextChannel):
+        await self.config.guild(ctx.guild).log_channel.set(channel.id)
+        await ctx.send(f"📋 Log channel set to {channel.mention}.")
+
+    @chatter.command()
+    @commands.has_permissions(administrator=True)
+    async def reset(self, ctx: commands.Context):
+        class ConfirmResetModal(Modal, title="Reset Chatter Database"):
+            confirm_input = TextInput(label="Type exactly: yes, reset the database", placeholder="yes, reset the database")
+
+            async def on_submit(self, interaction: discord.Interaction):
+                if self.confirm_input.value.strip().lower() == "yes, reset the database":
+                    backup_file = discord.File(self.db_path, filename="messages_backup.db") if self.db_path.exists() else None
+                    log_channel_id = await self.config.guild(ctx.guild).log_channel()
+                    log_channel = ctx.guild.get_channel(log_channel_id) if log_channel_id else ctx.channel
+                    if backup_file:
+                        await log_channel.send("📁 Backup before reset:", file=backup_file)
+                        os.remove(self.db_path)
+                    self.model.clear()
+                    self.message_count = 0
+                    await interaction.response.send_message("🧹 Database has been reset.", ephemeral=True)
+                else:
+                    await interaction.response.send_message("❌ Confirmation failed. Database not reset.", ephemeral=True)
+
+        await ctx.send_modal(ConfirmResetModal())

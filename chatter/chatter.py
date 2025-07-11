@@ -142,21 +142,79 @@ class Chatter(commands.Cog):
 
     @chatter.command()
     @commands.has_permissions(administrator=True)
-    async def feed(self, ctx: commands.Context, channel: discord.TextChannel):
-        """Train the chatter bot on up to 5000 messages from a specified channel."""
-        await ctx.send(f"📥 Reading messages from {channel.mention}...")
+    async def feed(self, ctx: commands.Context, channel: discord.TextChannel, amount: int = 5000):
+        """Train the chatter bot on messages from a specified channel. Optionally set amount (1–5000)."""
+        amount = max(1, min(5000, amount))
+        progress_msg = await ctx.send(f"📥 Reading messages from {channel.mention} (max {amount})...")
+
         count = 0
-        async for msg in channel.history(limit=5000, oldest_first=True):
+        skipped_bots = 0
+        skipped_short = 0
+
+        async for msg in channel.history(limit=amount, oldest_first=True):
             if msg.author.bot:
+                skipped_bots += 1
                 continue
             content = msg.clean_content.strip()
-            if len(content.split()) >= 3:
-                self._train(content)
-                async with aiosqlite.connect(self.db_path) as db:
-                    await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
-                count += 1
+            if len(content.split()) < 3:
+                skipped_short += 1
+                continue
+            self._train(content)
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
+            count += 1
+
+            if count % 500 == 0:
+                try:
+                    await progress_msg.edit(content=f"⏳ {count} messages processed out of {amount}...")
+                except discord.HTTPException:
+                    pass
+
         self.message_count += count
-        await ctx.send(f"✅ Trained on {count} messages from {channel.mention}.")
+        try:
+            await progress_msg.edit(content=(
+                f"✅ Trained on {count} messages from {channel.mention} (limit: {amount}).
+"
+                f"⛔ Skipped: {skipped_bots} bot messages, {skipped_short} too short."
+            ))
+        except discord.HTTPException:
+            await ctx.send(
+                f"✅ Trained on {count} messages from {channel.mention} (limit: {amount}).
+"
+                f"⛔ Skipped: {skipped_bots} bot messages, {skipped_short} too short."
+            )
+
+        return
+
+        await ctx.send(f"📥 Reading messages from {channel.mention} (max {amount})...")
+        count = 0
+        skipped_bots = 0
+        skipped_short = 0
+        amount = max(1, min(5000, amount))
+
+        async for msg in channel.history(limit=amount, oldest_first=True):
+            if msg.author.bot:
+                skipped_bots += 1
+                continue
+            content = msg.clean_content.strip()
+            if len(content.split()) < 3:
+                skipped_short += 1
+                continue
+            self._train(content)
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
+            count += 1
+
+            # Progress feedback every 1000 messages
+            if count > 0 and count % 1000 == 0:
+                await ctx.send(f"⏳ {count} messages processed...")
+
+        self.message_count += count
+        await ctx.send(
+            f"✅ Trained on {count} messages from {channel.mention} (limit: {amount}).
+"
+            f"⛔ Skipped: {skipped_bots} bot messages, {skipped_short} too short."
+        )
 
     @chatter.command()
     @commands.has_permissions(administrator=True)

@@ -5,6 +5,7 @@ from collections import defaultdict
 import aiohttp
 import asyncio
 
+
 class LatinDictionary(commands.Cog):
     """Look up Latin words using freedictionaryapi.com."""
 
@@ -54,27 +55,25 @@ class LatinDictionary(commands.Cog):
                     entry_text += f"__{pos}__\n" + "\n".join(f"• {d}" for d in lines) + "\n"
             pages.append(entry_text.strip())
 
-# Format embed(s)
-if len(pages) == 1:
-    embed = discord.Embed(
-        title=f"Latin Dictionary: `{raw_words[0]}`",
-        description=pages[0],
-        color=discord.Color.gold()
-    )
-    await ctx.send(embed=embed)
-else:
-    embeds = []
-    for i, page in enumerate(pages, start=1):
-        embed = discord.Embed(
-            title="Latin Dictionary Results",
-            description=page,
-            color=discord.Color.gold()
-        )
-        embed.set_footer(text=f"Page {i}/{len(pages)}")
-        embeds.append(embed)
-        
-        await self._send_paginated_embeds(ctx, embeds)
-
+        # Send results
+        if len(pages) == 1:
+            embed = discord.Embed(
+                title=f"Latin Dictionary: `{raw_words[0]}`",
+                description=pages[0],
+                color=discord.Color.gold()
+            )
+            await ctx.send(embed=embed)
+        else:
+            embeds = []
+            for i, page in enumerate(pages, start=1):
+                embed = discord.Embed(
+                    title="Latin Dictionary Results",
+                    description=page,
+                    color=discord.Color.gold()
+                )
+                embed.set_footer(text=f"Page {i}/{len(pages)}")
+                embeds.append(embed)
+            await self._send_paginated_embeds(ctx, embeds)
 
     async def _get_word_definition(self, word: str):
         """Return cached or fetched word definition JSON from the API."""
@@ -109,7 +108,6 @@ else:
             from redbot.core.utils.menus import menu, DEFAULT_CONTROLS
             await menu(ctx, embeds, controls=DEFAULT_CONTROLS, timeout=60)
         except Exception:
-            # fallback to sending separately
             for embed in embeds:
                 await ctx.send(embed=embed)
                 await asyncio.sleep(1)

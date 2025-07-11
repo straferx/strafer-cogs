@@ -92,8 +92,7 @@ class Chatter(commands.Cog):
             feed_channels = conf.get("feed_channels", [])
             if message.channel.id in feed_channels and not message.author.bot:
                 content = message.clean_content.strip()
-                if len(content.split()) >= 3:
-                    self._train(content)
+                self._train(content)
                     await self._insert_message(message.guild.id, content)
                     await db.commit()
                     self.message_count += 1
@@ -163,7 +162,7 @@ class Chatter(commands.Cog):
         db_size = os.path.getsize(db_path) / 1024 / 1024 if db_path.exists() else 0
 
         embed = discord.Embed(title="🧠 Chatter Stats", color=discord.Color.blurple())
-        embed.add_field(name="Messages", value=f"{self.message_count:,}")
+        embed.add_field(name="Messages", value=f"{self.message_count:,} (this guild)")
         embed.add_field(name="Nodes", value=f"{node_count:,}")
         embed.add_field(name="Words", value=f"{word_count:,}")
         embed.add_field(name="Memory", value=f"{memory_usage:.2f} MB")
@@ -186,9 +185,7 @@ class Chatter(commands.Cog):
                 skipped_bots += 1
                 continue
             content = msg.clean_content.strip()
-            if len(content.split()) < 3:
-                skipped_short += 1
-                continue
+            
             self._train(content)
             await self._insert_message(ctx.guild.id, content)
             count += 1
@@ -233,8 +230,7 @@ class Chatter(commands.Cog):
             if msg.author.bot:
                 return
             content = msg.clean_content.strip()
-            if len(content.split()) < 3:
-                return
+            
             self._train(content)
             await self._insert_message(msg.guild.id, content)
             self.message_count += 1

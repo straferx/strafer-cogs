@@ -23,7 +23,7 @@ class Chatter(commands.Cog):
             feed_channels=[]
         )
         self.data_path = cog_data_path(self)
-        self.db_paths: Dict[int, str] = {}  # guild_id -> db path
+        self.data_path / f"messages_{ctx.guild.id}.db"s: Dict[int, str] = {}  # guild_id -> db path
         self.model: Dict[str, List[str]] = {}
         self.message_count: int = 0
         self.bot.loop.create_task(self._load_model())
@@ -88,9 +88,10 @@ class Chatter(commands.Cog):
                 content = message.clean_content.strip()
                 if len(content.split()) >= 3:
                     self._train(content)
-                    async with aiosqlite.connect(str(self.data_path / f"messages_{ctx.guild.id}.db")) as db:
+                    db_path = self.data_path / f"messages_{message.guild.id}.db"
+                    async with aiosqlite.connect(db_path) as db:
                         await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
-                        await db.commit()
+                await db.commit()
                     self.message_count += 1
         if not message.guild or message.author.bot:
             return
@@ -104,7 +105,8 @@ class Chatter(commands.Cog):
         content = message.clean_content.strip()
         if len(content.split()) >= 3:
             self._train(content)
-            async with aiosqlite.connect(self.db_path) as db:
+            db_path = self.data_path / f"messages_{message.guild.id}.db"
+            async with aiosqlite.connect(db_path) as db:
                 await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
                 await db.commit()
                 await db.commit()
@@ -158,7 +160,7 @@ class Chatter(commands.Cog):
         word_count = sum(len(v) for v in self.model.values())
         node_count = len(self.model)
         memory_usage = psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024
-        db_size = os.path.getsize((db_path) / 1024 / 1024 if db_path.exists() else 0)
+        db_size = os.path.getsize(db_path) / 1024 / 1024 if db_path.exists() else 0
         embed.add_field(name="Messages", value=f"{self.message_count:,} (this guild)")
         embed.add_field(name="Nodes", value=f"{node_count:,}")
         embed.add_field(name="Words", value=f"{word_count:,}")

@@ -1,7 +1,6 @@
 import discord
 from redbot.core import commands
 from redbot.core.bot import Red
-from collections import defaultdict
 import aiohttp
 import asyncio
 
@@ -17,7 +16,6 @@ class LatinDictionary(commands.Cog):
     @commands.command(name="latin")
     async def define_latin(self, ctx: commands.Context, *, text: str):
         """Look up one or more Latin words (comma/space separated)."""
-        # Normalize input
         raw_words = [w.strip().lower() for w in text.replace(",", " ").split()]
         if not raw_words:
             await ctx.send("❌ You must provide at least one Latin word.")
@@ -28,9 +26,9 @@ class LatinDictionary(commands.Cog):
         for word in raw_words:
             result = await self._get_word_definition(word)
             all_results.append((word, result))
-            await asyncio.sleep(0.2)  # To avoid hammering the API too fast
+            await asyncio.sleep(0.2)  # avoid rate-limiting
 
-        # Build the output
+        # Build formatted output
         pages = []
         for word, result in all_results:
             if not result:
@@ -57,8 +55,8 @@ class LatinDictionary(commands.Cog):
                                 t.get("language", {}).get("code") == "en"
                                 or t.get("language", {}).get("name", "").lower() == "english"
                             )
-                         ]
-                         if english_tr:
+                        ]
+                        if english_tr:
                             definition += "\n↪ " + ", ".join(english_tr)
                             translated_senses.append(definition)
                         else:
@@ -66,9 +64,7 @@ class LatinDictionary(commands.Cog):
                     else:
                         structural_senses.append(definition)
 
-
-
-                # Prioritize translated definitions
+                # Prioritize definitions with translations
                 lines = translated_senses[:3] + structural_senses[:3 - len(translated_senses[:3])]
 
                 if lines:
@@ -76,8 +72,7 @@ class LatinDictionary(commands.Cog):
 
             pages.append(entry_text.strip())
 
-
-        # Send results
+        # Send result(s)
         if len(pages) == 1:
             embed = discord.Embed(
                 title=f"Latin Dictionary: `{raw_words[0]}`",
@@ -119,7 +114,7 @@ class LatinDictionary(commands.Cog):
 
     async def _send_paginated_embeds(self, ctx, embeds):
         """Send multiple embeds as pages."""
-        if len(embeds) == 0:
+        if not embeds:
             return
 
         if len(embeds) == 1:

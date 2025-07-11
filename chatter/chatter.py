@@ -158,7 +158,7 @@ class Chatter(commands.Cog):
         word_count = sum(len(v) for v in self.model.values())
         node_count = len(self.model)
         memory_usage = psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024
-        db_size = os.path.getsize((db_path) / 1024 / 1024 if db_path.exists() else 0)
+        db_size = os.path.getsize(db_path) / 1024 / 1024 if db_path.exists() else 0)
         embed.add_field(name="Messages", value=f"{self.message_count:,} (this guild)")
         embed.add_field(name="Nodes", value=f"{node_count:,}")
         embed.add_field(name="Words", value=f"{word_count:,}")
@@ -199,12 +199,14 @@ class Chatter(commands.Cog):
         self.message_count += count
         try:
             await progress_msg.edit(content=(
-                f"✅ Trained on {count} messages from {channel.mention} (limit: {amount})."
+                f"✅ Trained on {count} messages from {channel.mention} (limit: {amount}).
+"
                 f"⛔ Skipped: {skipped_bots} bot messages, {skipped_short} too short."
             ))
         except discord.HTTPException:
             await ctx.send(
-                f"✅ Trained on {count} messages from {channel.mention} (limit: {amount})."
+                f"✅ Trained on {count} messages from {channel.mention} (limit: {amount}).
+"
                 f"⛔ Skipped: {skipped_bots} bot messages, {skipped_short} too short."
             )
 
@@ -238,7 +240,9 @@ class Chatter(commands.Cog):
                 await db.commit()
             self.message_count += 1
 
-self, ctx: commands.Context:
+@chatter.command()
+    @commands.has_permissions(administrator=True)
+    async def export(self, ctx: commands.Context):
         """Export the chatter training database as a file attachment."""
         db_path = self.data_path / f"messages_{ctx.guild.id}.db"
         if not db_path.exists():

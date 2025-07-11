@@ -93,9 +93,8 @@ class Chatter(commands.Cog):
             if message.channel.id in feed_channels and not message.author.bot:
                 content = message.clean_content.strip()
                 self._train(content)
-                    await self._insert_message(message.guild.id, content)
-                    await db.commit()
-                    self.message_count += 1
+                await self._insert_message(message.guild.id, content)
+                self.message_count += 1
         if not message.guild or message.author.bot:
             return
 

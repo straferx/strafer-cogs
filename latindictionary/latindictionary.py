@@ -41,19 +41,33 @@ class LatinDictionary(commands.Cog):
             for entry in result.get("entries", [])[:3]:
                 pos = entry.get("partOfSpeech", "—").capitalize()
                 senses = entry.get("senses", [])
-                lines = []
-                for sense in senses[:3]:
-                    definition = sense.get("definition", "")
+
+                translated_senses = []
+                structural_senses = []
+
+                for sense in senses:
+                    definition = sense.get("definition", "").strip()
                     translations = sense.get("translations", [])
+
                     if translations:
-                        tr = [f"{t.get('word')} ({t.get('language', {}).get('name', '')})"
-                              for t in translations if t.get("word")]
+                        tr = [
+                            f"{t.get('word')} ({t.get('language', {}).get('name', '')})"
+                            for t in translations if t.get("word")
+                        ]
                         if tr:
                             definition += "\n↪ " + ", ".join(tr)
-                    lines.append(definition.strip())
+                        translated_senses.append(definition)
+                    else:
+                        structural_senses.append(definition)
+
+                # Prioritize translated definitions
+                lines = translated_senses[:3] + structural_senses[:3 - len(translated_senses[:3])]
+
                 if lines:
                     entry_text += f"__{pos}__\n" + "\n".join(f"• {d}" for d in lines) + "\n"
+
             pages.append(entry_text.strip())
+
 
         # Send results
         if len(pages) == 1:

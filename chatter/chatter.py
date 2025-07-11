@@ -37,11 +37,11 @@ class Chatter(commands.Cog):
     async def _load_model(self):
         self.data_path.mkdir(parents=True, exist_ok=True)
         for db_file in self.data_path.glob("messages_*.db"):
-            guild_id = int(folder.stem.replace("messages_", ""))
+            guild_id = int(db_file.stem.replace("messages_", ""))
             self.db_paths[guild_id] = str(db_file)
             async with aiosqlite.connect(db_file) as db:
                 async with db.execute("SELECT content FROM messages") as cursor:
-                async for row in cursor:
+                    async for row in cursor:
                     self._train(row[0])
                     self.message_count += 1
 

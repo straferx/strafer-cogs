@@ -19,27 +19,27 @@ class Chatter(commands.Cog):
             chance=5,
             excluded_channels=[]
         )
-        self.db_path = cog_data_path(self) / "messages.db"
+        self.data_path = cog_data_path(self)
+        self.db_path = self.data_path / "messages.db"
         self.model: Dict[str, List[str]] = {}
         self.message_count: int = 0
         self.bot.loop.create_task(self._load_model())
 
     async def _load_model(self):
-        if not self.db_path.exists():
-            async with aiosqlite.connect(self.db_path) as db:
-                await db.execute("""
-                    CREATE TABLE IF NOT EXISTS messages (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        content TEXT
-                    )
-                """)
-                await db.commit()
-        else:
-            async with aiosqlite.connect(self.db_path) as db:
-                async with db.execute("SELECT content FROM messages") as cursor:
-                    async for row in cursor:
-                        self._train(row[0])
-                        self.message_count += 1
+        self.data_path.mkdir(parents=True, exist_ok=True)
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    content TEXT
+                )
+            """)
+            await db.commit()
+
+            async with db.execute("SELECT content FROM messages") as cursor:
+                async for row in cursor:
+                    self._train(row[0])
+                    self.message_count += 1
 
     def _train(self, message: str):
         tokens = message.strip().split()

@@ -11,6 +11,12 @@ import psutil
 import asyncio
 
 class Chatter(commands.Cog):
+
+    async def _insert_message(self, guild_id: int, content: str):
+        db_path = self.data_path / f"messages_{guild_id}.db"
+        async with aiosqlite.connect(db_path) as db:
+            await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
+            await db.commit()
     """A chat simulator that learns from user messages and occasionally replies."""
 
     def __init__(self, bot: Red):
@@ -88,9 +94,7 @@ class Chatter(commands.Cog):
                 content = message.clean_content.strip()
                 if len(content.split()) >= 3:
                     self._train(content)
-                    db_path = self.data_path / f"messages_{message.guild.id}.db"
-                    async with aiosqlite.connect(db_path) as db:
-                        await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
+                    await self._insert_message(message.guild.id, content)
                     await db.commit()
                     self.message_count += 1
         if not message.guild or message.author.bot:
@@ -105,11 +109,7 @@ class Chatter(commands.Cog):
         content = message.clean_content.strip()
         if len(content.split()) >= 3:
             self._train(content)
-            db_path = self.data_path / f"messages_{message.guild.id}.db"
-            async with aiosqlite.connect(db_path) as db:
-                await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
-                await db.commit()
-                await db.commit()
+            await self._insert_message(message.guild.id, content)
             self.message_count += 1
 
         mentioned = self.bot.user in message.mentions
@@ -188,9 +188,7 @@ class Chatter(commands.Cog):
                 skipped_short += 1
                 continue
             self._train(content)
-            db_path = self.data_path / f"messages_{ctx.guild.id}.db"
-        async with aiosqlite.connect(db_path) as db:
-                await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
+            await self._insert_message(ctx.guild.id, content)
             count += 1
 
             if count % 500 == 0:
@@ -236,9 +234,7 @@ class Chatter(commands.Cog):
             if len(content.split()) < 3:
                 return
             self._train(content)
-            async with aiosqlite.connect(self.db_path) as db:
-                await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
-                await db.commit()
+            await self._insert_message(msg.guild.id, content)
             self.message_count += 1
 
     @chatter.command()

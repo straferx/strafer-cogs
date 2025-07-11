@@ -50,15 +50,23 @@ class LatinDictionary(commands.Cog):
                     translations = sense.get("translations", [])
 
                     if translations:
-                        tr = [
-                            f"{t.get('word')} ({t.get('language', {}).get('name', '')})"
-                            for t in translations if t.get("word")
-                        ]
-                        if tr:
-                            definition += "\n↪ " + ", ".join(tr)
-                        translated_senses.append(definition)
+                        english_tr = [
+                            t.get("word")
+                            for t in translations
+                            if t.get("word") and (
+                                t.get("language", {}).get("code") == "en"
+                                or t.get("language", {}).get("name", "").lower() == "english"
+                            )
+                         ]
+                         if english_tr:
+                            definition += "\n↪ " + ", ".join(english_tr)
+                            translated_senses.append(definition)
+                        else:
+                            structural_senses.append(definition)
                     else:
                         structural_senses.append(definition)
+
+
 
                 # Prioritize translated definitions
                 lines = translated_senses[:3] + structural_senses[:3 - len(translated_senses[:3])]

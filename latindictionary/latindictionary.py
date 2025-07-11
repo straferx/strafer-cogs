@@ -3,6 +3,7 @@ from redbot.core import commands
 from redbot.core.bot import Red
 import aiohttp
 import asyncio
+import difflib
 
 
 class LatinDictionary(commands.Cog):
@@ -11,12 +12,12 @@ class LatinDictionary(commands.Cog):
     def __init__(self, bot: Red):
         self.bot = bot
         self.api_base = "https://freedictionaryapi.com/api/v1/entries/la/"
-        self.suggest_url = "https://freedictionaryapi.com/api/v1/suggest/la/"
-        self._cache = {}
+        self._cache = {}  # word -> API data
+        self._known_words = set()  # track fetched valid words
 
     @commands.command(name="latin")
     async def define_latin(self, ctx: commands.Context, *, text: str):
-        """Look up one or more Latin words (comma or space separated)."""
+        """Look up one or more Latin words (comma/space separated)."""
         raw_words = [w.strip().lower() for w in text.replace(",", " ").split()]
         if not raw_words:
             await ctx.send("❌ You must provide at least one Latin word.")
@@ -27,8 +28,8 @@ class LatinDictionary(commands.Cog):
         for word in raw_words:
             result = await self._get_word_definition(word)
             suggestions = []
-            if not result:
-                suggestions = await self._get_suggestions(word)
+            if not result or not result.get("entries"):
+                suggestions = self._get_fallback_suggestions(word)
             all_results.append((word, result, suggestions))
             await asyncio.sleep(0.2)
 
@@ -37,7 +38,7 @@ class LatinDictionary(commands.Cog):
             if not result or not result.get("entries"):
                 suggestion_text = ""
                 if suggestions:
-                    suggestion_text = f"\n🛈 Did you mean: " + ", ".join(f"`{s}`" for s in suggestions[:5])
+                    suggestion_text = f"\n🛈 Did you mean: " + ", ".join(f"`{s}`" for s in suggestions)
                 pages.append(f"`❌` Such word isn't listed in Latin dictionary.{suggestion_text}")
                 continue
 
@@ -104,7 +105,7 @@ class LatinDictionary(commands.Cog):
             await self._send_paginated_embeds(ctx, embeds)
 
     async def _get_word_definition(self, word: str):
-        """Return cached or fetched word definition from the API."""
+        """Return cached or fetched word definition JSON from the API."""
         if word in self._cache:
             return self._cache[word]
 
@@ -120,21 +121,15 @@ class LatinDictionary(commands.Cog):
 
         if isinstance(data, dict) and "entries" in data:
             self._cache[word] = data
+            self._known_words.add(word)
             return data
         return None
 
-    async def _get_suggestions(self, word: str):
-        """Return a list of close word suggestions from the API."""
-        url = f"{self.suggest_url}{word}"
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url) as resp:
-                    if resp.status != 200:
-                        return []
-                    data = await resp.json()
-                    return data.get("suggestions", [])
-        except Exception:
+    def _get_fallback_suggestions(self, word: str):
+        """Suggest similar Latin words based on previously seen valid words."""
+        if not self._known_words:
             return []
+        return difflib.get_close_matches(word, self._known_words, n=5, cutoff=0.6)
 
     async def _send_paginated_embeds(self, ctx, embeds):
         if not embeds:

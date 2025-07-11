@@ -273,7 +273,7 @@ class Chatter(commands.Cog):
             return
 
         text = "
-".join([f"`{msg_id}` <@{user_id}>: {content}" for msg_id, user_id, content in reversed(rows)])
+".join([f"`{msg_id}` <@{user_id}>: {content}" for msg_id, user_id, content in reversed(rows)])".join([f"`{msg_id}` <@{user_id}>: {content}" for msg_id, user_id, content in reversed(rows)])
         embed = discord.Embed(title=f"📄 Last {limit} Messages in DB", color=discord.Color.dark_gray())
         embed.description = text
         await ctx.send(embed=embed)

@@ -70,9 +70,7 @@ class Chatter(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         # Ignore command messages (e.g., .wordle)
-        prefixes = await self.bot.get_valid_prefixes()
-        text_prefixes = [p for p in prefixes if not p.startswith("<@")]
-        if any(message.content.startswith(p) for p in text_prefixes):
+        if message.content.startswith('.'):
             return
         if not message.guild:
             return
@@ -120,9 +118,9 @@ class Chatter(commands.Cog):
         if random.randint(1, 100) <= conf["chance"]:
             reply = self._generate_message()
             await message.channel.send(reply)
-            return
 
-        if random.randint(1, 100) <= conf["chance"]:
+        # Do NOT consume messages unless this is a configured feed channel
+        return
             reply = self._generate_message()
             await message.channel.send(reply)
 

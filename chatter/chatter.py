@@ -257,6 +257,30 @@ class Chatter(commands.Cog):
 
     @chatter.command()
     @commands.has_permissions(administrator=True)
+    async def showdb(self, ctx: commands.Context, limit: int = 10):
+        """Show the last messages stored in the chatter database."""
+        db_path = self.data_path / f"messages_{ctx.guild.id}.db"
+        if not db_path.exists():
+            await ctx.send("❌ No database found for this server.")
+            return
+
+        async with aiosqlite.connect(db_path) as db:
+            async with db.execute("SELECT message_id, user_id, content FROM messages ORDER BY id DESC LIMIT ?", (limit,)) as cursor:
+                rows = await cursor.fetchall()
+
+        if not rows:
+            await ctx.send("📭 No messages found in the database.")
+            return
+
+        text = "
+".join([f"`{msg_id}` <@{user_id}>: {content}" for msg_id, user_id, content in reversed(rows)])
+        embed = discord.Embed(title=f"📄 Last {limit} Messages in DB", color=discord.Color.dark_gray())
+        embed.description = text
+        await ctx.send(embed=embed)
+
+
+    @chatter.command()
+    @commands.has_permissions(administrator=True)
     async def reset(self, ctx: commands.Context):
         """Reset the chatter database. Requires typed confirmation."""
         log_channel_id = await self.config.guild(ctx.guild).log_channel()

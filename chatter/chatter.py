@@ -41,9 +41,9 @@ class Chatter(commands.Cog):
             self.db_paths[guild_id] = str(db_file)
             async with aiosqlite.connect(db_file) as db:
                 async with db.execute("SELECT content FROM messages") as cursor:
-                    async for row in cursor:
-                    self._train(row[0])
-                    self.message_count += 1
+                                        async for row in cursor:
+                        self._train(row[0])
+                        self.message_count += 1
 
     def _train(self, message: str):
         tokens = message.strip().split()

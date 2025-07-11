@@ -91,7 +91,7 @@ class Chatter(commands.Cog):
                     db_path = self.data_path / f"messages_{message.guild.id}.db"
                     async with aiosqlite.connect(db_path) as db:
                         await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
-                await db.commit()
+                    await db.commit()
                     self.message_count += 1
         if not message.guild or message.author.bot:
             return

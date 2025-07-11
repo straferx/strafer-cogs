@@ -54,21 +54,27 @@ class LatinDictionary(commands.Cog):
                     entry_text += f"__{pos}__\n" + "\n".join(f"• {d}" for d in lines) + "\n"
             pages.append(entry_text.strip())
 
-        # Paginate if needed
-        if len(pages) == 1:
-            await ctx.send(pages[0])
-        else:
-            embeds = []
-            for i, page in enumerate(pages, start=1):
-                embed = discord.Embed(
-                    title="Latin Dictionary Results",
-                    description=page,
-                    color=discord.Color.gold()
-                )
-                embed.set_footer(text=f"Page {i}/{len(pages)}")
-                embeds.append(embed)
+# Format embed(s)
+if len(pages) == 1:
+    embed = discord.Embed(
+        title=f"Latin Dictionary: `{raw_words[0]}`",
+        description=pages[0],
+        color=discord.Color.gold()
+    )
+    await ctx.send(embed=embed)
+else:
+    embeds = []
+    for i, page in enumerate(pages, start=1):
+        embed = discord.Embed(
+            title="Latin Dictionary Results",
+            description=page,
+            color=discord.Color.gold()
+        )
+        embed.set_footer(text=f"Page {i}/{len(pages)}")
+        embeds.append(embed)
 
-            await self._send_paginated_embeds(ctx, embeds)
+    await self._send_paginated_embeds(ctx, embeds)
+
 
     async def _get_word_definition(self, word: str):
         """Return cached or fetched word definition JSON from the API."""

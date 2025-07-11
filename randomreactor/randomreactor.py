@@ -2,78 +2,85 @@ import discord
 import random
 from redbot.core import commands, Config
 from redbot.core.bot import Red
-from redbot.core.data_manager import cog_data_path
-from discord.ext import tasks
 import asyncio
 
 
 class RandomReactor(commands.Cog):
-    """Randomly reacts to random messages with random emojis at random times."""
+    """Randomly reacts to new messages with random emojis from the guild."""
 
     def __init__(self, bot: Red):
         self.bot = bot
         self.config = Config.get_conf(self, identifier=654321, force_registration=True)
-        self.config.register_guild(enabled=False)
-        self.reactor_loop.start()
+        self.config.register_guild(
+            enabled=False,
+            chance=0.05,              # 5% chance to react
+            delay_range=(1, 5)        # seconds
+        )
 
-    def cog_unload(self):
-        self.reactor_loop.cancel()
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if not message.guild:
+            return
+        if message.author.bot:
+            return
 
-    @tasks.loop(seconds=60)
-    async def reactor_loop(self):
-        await self.bot.wait_until_ready()
-        for guild in self.bot.guilds:
-            enabled = await self.config.guild(guild).enabled()
-            if not enabled:
-                continue
+        guild = message.guild
+        settings = await self.config.guild(guild).all()
 
-            # Pick a random text channel with read & history perms
-            channels = [
-                c for c in guild.text_channels
-                if c.permissions_for(guild.me).read_messages and c.permissions_for(guild.me).read_message_history
-            ]
-            if not channels:
-                continue
+        if not settings["enabled"]:
+            return
 
-            channel = random.choice(channels)
+        # Roll the dice
+        if random.random() > settings["chance"]:
+            return
 
-            try:
-                messages = [msg async for msg in channel.history(limit=100)]
-                messages = [m for m in messages if not m.author.bot]
-                if not messages:
-                    continue
+        emojis = [e for e in guild.emojis if e.available]
+        if not emojis:
+            return
 
-                message = random.choice(messages)
-                emojis = [e for e in guild.emojis if e.available]
+        delay = random.randint(*settings["delay_range"])
+        await asyncio.sleep(delay)
 
-                if not emojis:
-                    continue
-
-                emoji = random.choice(emojis)
-                await message.add_reaction(emoji)
-
-            except Exception as e:
-                print(f"RandomReactor failed in {guild.name}: {e}")
-
-        # Wait a random amount of time between 30–300 seconds before next run
-        self.reactor_loop.change_interval(seconds=random.randint(30, 300))
+        try:
+            emoji = random.choice(emojis)
+            await message.add_reaction(emoji)
+        except discord.HTTPException:
+            pass
 
     # === CONFIG COMMANDS ===
 
     @commands.group()
     @commands.guild_only()
     async def randreact(self, ctx):
-        """Random emoji reaction config."""
+        """Configure random emoji reacting."""
         pass
 
     @randreact.command()
     async def enable(self, ctx):
-        """Enable random emoji reactions in this server."""
+        """Enable random reacting in this server."""
         await self.config.guild(ctx.guild).enabled.set(True)
-        await ctx.send("✅ Random emoji reacting enabled.")
+        await ctx.send("✅ Random emoji reactions enabled.")
 
     @randreact.command()
     async def disable(self, ctx):
-        """Disable random emoji reactions in this server."""
+        """Disable random reacting in this server."""
         await self.config.guild(ctx.guild).enabled.set(False)
-        await ctx.send("❌ Random emoji reacting disabled.")
+        await ctx.send("❌ Random emoji reactions disabled.")
+
+    @randreact.command()
+    async def chance(self, ctx, chance: float):
+        """Set the chance to react (0.0 to 1.0)."""
+        if not 0.0 <= chance <= 1.0:
+            await ctx.send("❗ Chance must be between 0.0 and 1.0")
+            return
+        await self.config.guild(ctx.guild).chance.set(chance)
+        await ctx.send(f"🎲 Reaction chance set to `{chance * 100:.1f}%`.")
+
+    @randreact.command(name="delayrange")
+    async def delay_range(self, ctx, min_delay: int, max_delay: int):
+        """Set random delay range in seconds before reacting."""
+        if min_delay < 0 or max_delay < min_delay:
+            await ctx.send("❗ Invalid delay range.")
+            return
+        await self.config.guild(ctx.guild).delay_range.set((min_delay, max_delay))
+        await ctx.send(f"⏱️ Delay range set to `{min_delay}-{max_delay}` seconds.")

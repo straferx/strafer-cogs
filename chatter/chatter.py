@@ -162,10 +162,9 @@ class Chatter(commands.Cog):
         db_size = os.path.getsize(db_path) / 1024 / 1024 if db_path.exists() else 0
 
         embed = discord.Embed(title="🧠 Chatter Stats", color=discord.Color.blurple())
-        embed.add_field(name="Messages", value=f"{self.message_count:,} (this guild)")
+        embed.add_field(name="Messages", value=f"{self.message_count:,}")
         embed.add_field(name="Nodes", value=f"{node_count:,}")
         embed.add_field(name="Words", value=f"{word_count:,}")
-        embed.add_field(name="Memory", value=f"{memory_usage:.2f} MB")
         embed.add_field(name="Database", value=f"{db_size:.2f} MB")
         await ctx.send(embed=embed)
 

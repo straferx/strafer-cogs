@@ -104,11 +104,8 @@ class Chatter(commands.Cog):
         if message.channel.id in excluded:
             return
 
-        content = message.clean_content.strip()
-        if len(content.split()) >= 3:
-            self._train(content)
-            await self._insert_message(message.guild.id, content)
-            self.message_count += 1
+        # Do NOT consume messages unless this is a configured feed channel
+        return
 
         mentioned = self.bot.user in message.mentions
         replied = message.reference and message.reference.resolved and message.reference.resolved.author == self.bot.user

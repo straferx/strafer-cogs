@@ -5,38 +5,48 @@ import aiohttp
 
 
 class LatinDictionary(commands.Cog):
-    """Look up Latin words using a free online dictionary API."""
+    """Look up Latin words using FreeDictionaryAPI."""
 
     def __init__(self, bot: Red):
         self.bot = bot
-        self.api_url = "https://latin-dictionary-api.vercel.app/api/v1/entries?word="
+        self.api_base = "https://freedictionaryapi.com/api/v1/entries/la/"
 
     @commands.command(name="latin")
     async def define_latin(self, ctx: commands.Context, word: str):
-        """Look up a Latin word from a public dictionary API."""
-        url = self.api_url + word.lower()
+        """Look up a Latin word from freedictionaryapi.com."""
+        url = f"{self.api_base}{word.lower()}?translations=true"
 
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 if resp.status != 200:
-                    await ctx.send("❌ Error contacting the dictionary API.")
+                    await ctx.send("❌ Could not reach the dictionary API.")
+                    return
+                try:
+                    data = await resp.json()
+                except Exception:
+                    await ctx.send("❌ Error parsing dictionary response.")
                     return
 
-                data = await resp.json()
-
-        if not data:
-            await ctx.send(f"❌ No definition found for `{word}`.")
+        if not data or not isinstance(data, list):
+            await ctx.send(f"❌ No entry found for `{word}`.")
             return
 
         entry = data[0]
+        latin_word = entry.get("word", word)
+        definitions = entry.get("meanings", [])
+
+        if not definitions:
+            await ctx.send(f"❌ No definitions found for `{latin_word}`.")
+            return
+
         embed = discord.Embed(
-            title=f"📖 Latin Dictionary: `{entry['word']}`",
+            title=f"📖 Latin Dictionary: `{latin_word}`",
             color=discord.Color.dark_gold()
         )
 
-        for definition in entry.get("definitions", []):
-            part = definition.get("partOfSpeech", "—").capitalize()
-            meaning = definition.get("meaning", "—")
-            embed.add_field(name=part, value=meaning, inline=False)
+        for meaning in definitions:
+            part = meaning.get("partOfSpeech", "—").capitalize()
+            definition = meaning.get("definition", "—")
+            embed.add_field(name=part, value=definition, inline=False)
 
         await ctx.send(embed=embed)

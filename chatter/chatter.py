@@ -104,15 +104,20 @@ class Chatter(commands.Cog):
         if message.channel.id in excluded:
             return
 
-        # Do NOT consume messages unless this is a configured feed channel
-        return
-
         mentioned = self.bot.user in message.mentions
         replied = message.reference and message.reference.resolved and message.reference.resolved.author == self.bot.user
 
         if mentioned or replied:
             reply = self._generate_message()
             await message.channel.send(reply)
+            return
+
+        if random.randint(1, 100) <= conf["chance"]:
+            reply = self._generate_message()
+            await message.channel.send(reply)
+
+        # Do NOT consume messages unless this is a configured feed channel
+        return
             return
 
         if random.randint(1, 100) <= conf["chance"]:

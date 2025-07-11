@@ -257,24 +257,36 @@ class Chatter(commands.Cog):
 
     @chatter.command()
     @commands.has_permissions(administrator=True)
-    async def showdb(self, ctx: commands.Context, limit: int = 10):
-        """Show the last messages stored in the chatter database."""
+    async def showdb(self, ctx: commands.Context):
+        """Show the last messages stored in the chatter database with pagination and search."""
+        from redbot.core.utils.views import SimpleMenu
+        from redbot.core.utils.menus import DEFAULT_CONTROLS
+
         db_path = self.data_path / f"messages_{ctx.guild.id}.db"
         if not db_path.exists():
             await ctx.send("❌ No database found for this server.")
             return
 
         async with aiosqlite.connect(db_path) as db:
-            async with db.execute("SELECT message_id, user_id, content FROM messages ORDER BY id DESC LIMIT ?", (limit,)) as cursor:
+            async with db.execute("SELECT message_id, user_id, content FROM messages ORDER BY id DESC") as cursor:
                 rows = await cursor.fetchall()
 
         if not rows:
             await ctx.send("📭 No messages found in the database.")
             return
 
-        text = "\n".join([f"`{msg_id}` <@{user_id}>: {content}" for msg_id, user_id, content in reversed(rows)])
-        embed = discord.Embed(title=f"📄 Last {limit} Messages in DB", description=text, color=discord.Color.dark_gray())
-        await ctx.send(embed=embed)
+        pages = []
+        for i in range(0, len(rows), 10):
+            chunk = rows[i:i+10]
+            description = "\n".join([f"`{m}` <@{u}>: {c}" for m, u, c in chunk])
+            embed = discord.Embed(
+                title=f"📄 Messages {i + 1}–{min(i + 10, len(rows))} of {len(rows)}",
+                description=description,
+                color=discord.Color.dark_gray()
+            )
+            pages.append(embed)
+
+        await SimpleMenu(pages, DEFAULT_CONTROLS).start(ctx)
 
 
     @chatter.command()

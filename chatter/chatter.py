@@ -118,7 +118,7 @@ class Chatter(commands.Cog):
 
         # Do NOT consume messages unless this is a configured feed channel
         return
-            return
+        
 
         if random.randint(1, 100) <= conf["chance"]:
             reply = self._generate_message()

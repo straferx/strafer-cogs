@@ -98,6 +98,7 @@ class Chatter(commands.Cog):
                 self._train(content)
                 await self._insert_message(message.guild.id, content)
                 self.message_count += 1
+                return
         if not message.guild or message.author.bot:
             return
 

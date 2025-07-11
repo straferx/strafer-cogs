@@ -8,7 +8,7 @@ from typing import Dict, List
 import re
 import os
 import psutil
-from discord.ui import Modal, TextInput, View
+import asyncio
 
 class Chatter(commands.Cog):
     """A chat simulator that learns from user messages and occasionally replies."""
@@ -104,6 +104,7 @@ class Chatter(commands.Cog):
     @chatter.command()
     @commands.has_permissions(administrator=True)
     async def channelexclude(self, ctx: commands.Context):
+        """Toggle this channel to be excluded from chatter replies."""
         cid = ctx.channel.id
         conf = self.config.guild(ctx.guild)
         current = await conf.excluded_channels()
@@ -118,12 +119,14 @@ class Chatter(commands.Cog):
     @chatter.command()
     @commands.has_permissions(administrator=True)
     async def chance(self, ctx: commands.Context, percent: int):
+        """Set the reply chance percentage (0–100) for random chatter messages."""
         percent = max(0, min(100, percent))
         await self.config.guild(ctx.guild).chance.set(percent)
         await ctx.send(f"📊 Random reply chance set to {percent}%.")
 
     @chatter.command()
     async def stats(self, ctx: commands.Context):
+        """Show statistics about the chatter model and memory usage."""
         word_count = sum(len(v) for v in self.model.values())
         node_count = len(self.model)
         memory_usage = psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024
@@ -140,6 +143,7 @@ class Chatter(commands.Cog):
     @chatter.command()
     @commands.has_permissions(administrator=True)
     async def feed(self, ctx: commands.Context, channel: discord.TextChannel):
+        """Train the chatter bot on up to 5000 messages from a specified channel."""
         await ctx.send(f"📥 Reading messages from {channel.mention}...")
         count = 0
         async for msg in channel.history(limit=5000, oldest_first=True):
@@ -157,6 +161,7 @@ class Chatter(commands.Cog):
     @chatter.command()
     @commands.has_permissions(administrator=True)
     async def export(self, ctx: commands.Context):
+        """Export the chatter training database as a file attachment."""
         if not self.db_path.exists():
             await ctx.send("❌ Database file does not exist.")
             return
@@ -165,34 +170,34 @@ class Chatter(commands.Cog):
     @chatter.command()
     @commands.has_permissions(administrator=True)
     async def logchannel(self, ctx: commands.Context, channel: discord.TextChannel):
+        """Set the channel where chatter reset logs and backups will be sent."""
         await self.config.guild(ctx.guild).log_channel.set(channel.id)
         await ctx.send(f"📋 Log channel set to {channel.mention}.")
 
     @chatter.command()
     @commands.has_permissions(administrator=True)
     async def reset(self, ctx: commands.Context):
-        """Reset the chatter database after confirmation."""
+        """Reset the chatter database. Requires typed confirmation."""
+        log_channel_id = await self.config.guild(ctx.guild).log_channel()
+        log_channel = ctx.guild.get_channel(log_channel_id) if log_channel_id else None
+
+        if log_channel is None:
+            await ctx.send("❌ You must set a log channel with `.chatter logchannel <channel>` before resetting the database.")
+            return
+
         await ctx.send("⚠️ Are you sure you want to reset the chatter database?\nType `yes, reset the database` to confirm.")
 
         def check(m):
-            return (
-                m.author == ctx.author
-                and m.channel == ctx.channel
-                and m.content.lower().strip() == "yes, reset the database"
-            )
+            return m.author == ctx.author and m.channel == ctx.channel and m.content.strip().lower() == "yes, reset the database"
 
         try:
-            msg = await self.bot.wait_for("message", check=check, timeout=30)
+            await self.bot.wait_for("message", check=check, timeout=30)
         except asyncio.TimeoutError:
             await ctx.send("❌ Timed out. Database was not reset.")
             return
 
-        # Backup and delete
-        backup_file = discord.File(self.db_path, filename="messages_backup.db") if self.db_path.exists() else None
-        log_channel_id = await self.config.guild(ctx.guild).log_channel()
-        log_channel = ctx.guild.get_channel(log_channel_id) if log_channel_id else ctx.channel
-        if backup_file:
-            await log_channel.send("📁 Backup before reset:", file=backup_file)
+        if self.db_path.exists():
+            await log_channel.send("📁 Backup before reset:", file=discord.File(self.db_path, filename="messages_backup.db"))
             os.remove(self.db_path)
 
         self.model.clear()

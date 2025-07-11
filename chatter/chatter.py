@@ -238,7 +238,7 @@ class Chatter(commands.Cog):
                 await db.commit()
             self.message_count += 1
 
-@chatter.command()
+    @chatter.command()
     @commands.has_permissions(administrator=True)
     async def export(self, ctx: commands.Context):
         """Export the chatter training database as a file attachment."""

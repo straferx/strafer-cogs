@@ -11,11 +11,12 @@ class LatinDictionary(commands.Cog):
     def __init__(self, bot: Red):
         self.bot = bot
         self.api_base = "https://freedictionaryapi.com/api/v1/entries/la/"
-        self._cache = {}  # in-memory simple cache
+        self.suggest_url = "https://freedictionaryapi.com/api/v1/suggest/la/"
+        self._cache = {}
 
     @commands.command(name="latin")
     async def define_latin(self, ctx: commands.Context, *, text: str):
-        """Look up one or more Latin words (comma/space separated)."""
+        """Look up one or more Latin words (comma or space separated)."""
         raw_words = [w.strip().lower() for w in text.replace(",", " ").split()]
         if not raw_words:
             await ctx.send("❌ You must provide at least one Latin word.")
@@ -25,14 +26,19 @@ class LatinDictionary(commands.Cog):
 
         for word in raw_words:
             result = await self._get_word_definition(word)
-            all_results.append((word, result))
+            suggestions = []
+            if not result:
+                suggestions = await self._get_suggestions(word)
+            all_results.append((word, result, suggestions))
             await asyncio.sleep(0.2)
 
-        # Build formatted output
         pages = []
-        for word, result in all_results:
-            if not result:
-                pages.append(f"❌ **{word}**: not found.")
+        for word, result, suggestions in all_results:
+            if not result or not result.get("entries"):
+                suggestion_text = ""
+                if suggestions:
+                    suggestion_text = f"\n🛈 Did you mean: " + ", ".join(f"`{s}`" for s in suggestions[:5])
+                pages.append(f"`❌` Such word isn't listed in Latin dictionary.{suggestion_text}")
                 continue
 
             entry_text = f"📖 **{word}**\n"
@@ -71,34 +77,34 @@ class LatinDictionary(commands.Cog):
 
             pages.append(entry_text.strip())
 
-        # Send result(s)
         if len(pages) == 1:
-            word = raw_words[0]
+            word, _, _ = all_results[0]
             wiktionary_url = f"https://en.wiktionary.org/wiki/{word}#Latin"
+            is_missing = pages[0].startswith("`❌`")
+
             embed = discord.Embed(
                 title=f'Dictionary – "{word}"',
                 url=wiktionary_url,
                 description=pages[0],
-                color=discord.Color(0x36393F)
+                color=discord.Color.red() if is_missing else discord.Color(0x36393F)
             )
             await ctx.send(embed=embed)
         else:
             embeds = []
-            for i, page in enumerate(pages, start=1):
-                word = all_results[i - 1][0]
+            for i, (page, (word, _, _)) in enumerate(zip(pages, all_results), start=1):
                 wiktionary_url = f"https://en.wiktionary.org/wiki/{word}#Latin"
                 embed = discord.Embed(
                     title=f'Dictionary – "{word}"',
                     url=wiktionary_url,
                     description=page,
-                    color=discord.Color(0x36393F)
+                    color=discord.Color.red() if page.startswith("`❌`") else discord.Color(0x36393F)
                 )
                 embed.set_footer(text=f"Page {i}/{len(pages)}")
                 embeds.append(embed)
             await self._send_paginated_embeds(ctx, embeds)
 
     async def _get_word_definition(self, word: str):
-        """Return cached or fetched word definition JSON from the API."""
+        """Return cached or fetched word definition from the API."""
         if word in self._cache:
             return self._cache[word]
 
@@ -117,8 +123,20 @@ class LatinDictionary(commands.Cog):
             return data
         return None
 
+    async def _get_suggestions(self, word: str):
+        """Return a list of close word suggestions from the API."""
+        url = f"{self.suggest_url}{word}"
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    if resp.status != 200:
+                        return []
+                    data = await resp.json()
+                    return data.get("suggestions", [])
+        except Exception:
+            return []
+
     async def _send_paginated_embeds(self, ctx, embeds):
-        """Send multiple embeds as pages."""
         if not embeds:
             return
 

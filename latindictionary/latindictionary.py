@@ -72,8 +72,8 @@ else:
         )
         embed.set_footer(text=f"Page {i}/{len(pages)}")
         embeds.append(embed)
-
-    await self._send_paginated_embeds(ctx, embeds)
+        
+        await self._send_paginated_embeds(ctx, embeds)
 
 
     async def _get_word_definition(self, word: str):

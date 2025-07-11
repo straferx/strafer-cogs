@@ -238,7 +238,7 @@ class Chatter(commands.Cog):
                 await db.commit()
             self.message_count += 1
 
-self, ctx: commands.Context):
+self, ctx: commands.Context:
         """Export the chatter training database as a file attachment."""
         db_path = self.data_path / f"messages_{ctx.guild.id}.db"
         if not db_path.exists():

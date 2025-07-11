@@ -162,6 +162,9 @@ class Chatter(commands.Cog):
 
         embed = discord.Embed(title="🧠 Chatter Stats", color=discord.Color.blurple())
         embed.add_field(name="Messages", value=f"{self.message_count:,}")
+        feed_channels = await self.config.guild(ctx.guild).feed_channels()
+        feed_mentions = ', '.join(f"<#{cid}>" for cid in feed_channels) if feed_channels else "None"
+        embed.add_field(name="Feed Channels", value=feed_mentions, inline=False)
         embed.add_field(name="Nodes", value=f"{node_count:,}")
         embed.add_field(name="Words", value=f"{word_count:,}")
         embed.add_field(name="Database", value=f"{db_size:.2f} MB")

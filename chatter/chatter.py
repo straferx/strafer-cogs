@@ -67,10 +67,10 @@ class Chatter(commands.Cog):
             result.append(word)
         return " ".join(result)
 
-        @commands.Cog.listener()
-        async def on_message(self, message: discord.Message):
-            if message.content.strip().startswith(self.bot.command_prefix):
-                return
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if message.content.strip().startswith(self.bot.command_prefix):
+        return
         guild_id = message.guild.id
         db_path = self.data_path / f"messages_{guild_id}.db"
         self.db_paths[guild_id] = str(db_path)

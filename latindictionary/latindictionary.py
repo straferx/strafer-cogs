@@ -77,7 +77,7 @@ class LatinDictionary(commands.Cog):
             embed = discord.Embed(
                 title=f"Latin Dictionary: `{raw_words[0]}`",
                 description=pages[0],
-                color=discord.Color.gold()
+                color=discord.Color(0x36393F)
             )
             await ctx.send(embed=embed)
         else:
@@ -86,7 +86,7 @@ class LatinDictionary(commands.Cog):
                 embed = discord.Embed(
                     title="Latin Dictionary Results",
                     description=page,
-                    color=discord.Color.gold()
+                    color=discord.Color(0x36393F)
                 )
                 embed.set_footer(text=f"Page {i}/{len(pages)}")
                 embeds.append(embed)

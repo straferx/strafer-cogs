@@ -69,7 +69,10 @@ class Chatter(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        if message.content.strip().startswith(self.bot.command_prefix):
+        # Ignore command messages (e.g., .wordle)
+        prefixes = await self.bot.get_valid_prefixes()
+        text_prefixes = [p for p in prefixes if not p.startswith("<@")]
+        if any(message.content.startswith(p) for p in text_prefixes):
             return
         if not message.guild:
             return
@@ -120,6 +123,7 @@ class Chatter(commands.Cog):
 
         # Do NOT consume messages unless this is a configured feed channel
         return
+            return
 
         if random.randint(1, 100) <= conf["chance"]:
             reply = self._generate_message()
@@ -164,9 +168,10 @@ class Chatter(commands.Cog):
         db_size = os.path.getsize(db_path) / 1024 / 1024 if db_path.exists() else 0
 
         embed = discord.Embed(title="🧠 Chatter Stats", color=discord.Color.blurple())
-        embed.add_field(name="Messages", value=f"{self.message_count:,}")
+        embed.add_field(name="Messages", value=f"{self.message_count:,} (this guild)")
         embed.add_field(name="Nodes", value=f"{node_count:,}")
         embed.add_field(name="Words", value=f"{word_count:,}")
+        embed.add_field(name="Memory", value=f"{memory_usage:.2f} MB")
         embed.add_field(name="Database", value=f"{db_size:.2f} MB")
         await ctx.send(embed=embed)
 

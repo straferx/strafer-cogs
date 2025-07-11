@@ -12,10 +12,10 @@ import asyncio
 
 class Chatter(commands.Cog):
 
-    async def _insert_message(self, guild_id: int, content: str):
+    async def _insert_message(self, guild_id: int, content: str, message_id: int, user_id: int):
         db_path = self.data_path / f"messages_{guild_id}.db"
         async with aiosqlite.connect(db_path) as db:
-            await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
+            await db.execute("INSERT INTO messages (message_id, user_id, content) VALUES (?, ?, ?)", (message_id, user_id, content))
             await db.commit()
     """A chat simulator that learns from user messages and occasionally replies."""
 
@@ -84,6 +84,8 @@ class Chatter(commands.Cog):
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS messages (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    message_id INTEGER,
+                    user_id INTEGER,
                     content TEXT
                 )
             """)
@@ -96,7 +98,7 @@ class Chatter(commands.Cog):
             if message.channel.id in feed_channels and not message.author.bot:
                 content = message.clean_content.strip()
                 self._train(content)
-                await self._insert_message(message.guild.id, content)
+                await self._insert_message(message.guild.id, content, message.id, message.author.id)
                 self.message_count += 1
                 return
         if not message.guild or message.author.bot:
@@ -188,7 +190,7 @@ class Chatter(commands.Cog):
             content = msg.clean_content.strip()
             
             self._train(content)
-            await self._insert_message(ctx.guild.id, content)
+            await self._insert_message(ctx.guild.id, content, msg.id, msg.author.id)
             count += 1
 
             if count % 500 == 0:
@@ -233,7 +235,7 @@ class Chatter(commands.Cog):
             content = msg.clean_content.strip()
             
             self._train(content)
-            await self._insert_message(msg.guild.id, content)
+            await self._insert_message(msg.guild.id, content, msg.id, msg.author.id)
             self.message_count += 1
 
     @chatter.command()

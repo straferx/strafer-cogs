@@ -7,6 +7,7 @@ from redbot.core.data_manager import cog_data_path
 from typing import Dict, List
 import re
 import os
+import psutil
 
 class Chatter(commands.Cog):
     """A chat simulator that learns from user messages and occasionally replies."""
@@ -20,6 +21,7 @@ class Chatter(commands.Cog):
         )
         self.db_path = cog_data_path(self) / "messages.db"
         self.model: Dict[str, List[str]] = {}
+        self.message_count: int = 0
         self.bot.loop.create_task(self._load_model())
 
     async def _load_model(self):
@@ -37,6 +39,7 @@ class Chatter(commands.Cog):
                 async with db.execute("SELECT content FROM messages") as cursor:
                     async for row in cursor:
                         self._train(row[0])
+                        self.message_count += 1
 
     def _train(self, message: str):
         tokens = message.strip().split()
@@ -78,6 +81,7 @@ class Chatter(commands.Cog):
             async with aiosqlite.connect(self.db_path) as db:
                 await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
                 await db.commit()
+            self.message_count += 1
 
         # Reply if bot is mentioned or replied to
         mentioned = self.bot.user in message.mentions
@@ -122,9 +126,18 @@ class Chatter(commands.Cog):
     @chatter.command()
     async def stats(self, ctx: commands.Context):
         """View chatter model stats."""
-        word_count = len(self.model)
-        chain_size = sum(len(v) for v in self.model.values())
-        await ctx.send(f"📚 Learned {word_count} unique words with {chain_size} chain links.")
+        word_count = sum(len(v) for v in self.model.values())
+        node_count = len(self.model)
+        memory_usage = psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024
+        db_size = os.path.getsize(self.db_path) / 1024 / 1024 if self.db_path.exists() else 0
+
+        embed = discord.Embed(title="🧠 Chatter Stats", color=discord.Color.green())
+        embed.add_field(name="Messages", value=f"{self.message_count:,}")
+        embed.add_field(name="Nodes", value=f"{node_count:,}")
+        embed.add_field(name="Words", value=f"{word_count:,}")
+        embed.add_field(name="Memory", value=f"{memory_usage:.2f} MB")
+        embed.add_field(name="Database", value=f"{db_size:.2f} MB")
+        await ctx.send(embed=embed)
 
     @chatter.command()
     async def feed(self, ctx: commands.Context, channel: discord.TextChannel):
@@ -140,4 +153,5 @@ class Chatter(commands.Cog):
                 async with aiosqlite.connect(self.db_path) as db:
                     await db.execute("INSERT INTO messages (content) VALUES (?)", (content,))
                 count += 1
+        self.message_count += count
         await ctx.send(f"✅ Trained on {count} messages from {channel.mention}.")

@@ -286,7 +286,8 @@ class Chatter(commands.Cog):
             )
             pages.append(embed)
 
-        await SimpleMenu(pages, controls=DEFAULT_CONTROLS).start(ctx)
+        await menu(ctx, pages)
+
 
 
     @chatter.command()

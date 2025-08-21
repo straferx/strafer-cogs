@@ -405,14 +405,6 @@ class Wordlev2(Cog):
             timestamp=ctx.message.created_at,
         )
         embed.add_field(
-            name=_("Top by Win Percentage"),
-            value="\n".join(
-                fmt_entry(i, mid, games, wins, wr)
-                for i, (mid, games, wins, wr) in enumerate(top_by_win, start=1)
-            ),
-            inline=False,
-        )
-        embed.add_field(
             name=_("Top by Games Played"),
             value="\n".join(
                 fmt_entry_games(i, mid, games, wins, wr)

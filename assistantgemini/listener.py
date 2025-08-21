@@ -4,8 +4,8 @@ import discord
 from redbot.core import commands
 from redbot.core.i18n import Translator, cog_i18n
 
-from ..abc import MixinMeta
-from ..common.models import GuildSettings
+from .abc import MixinMeta
+from .common.models import GuildSettings
 
 log = logging.getLogger("red.vrt.assistantgemini.listener")
 _ = Translator("AssistantGemini", __file__)
@@ -135,4 +135,4 @@ class AssistantListener(MixinMeta):
                 if chunk.strip():
                     await target_channel.send(chunk)
                     import asyncio
-                    await asyncio.sleep(1)  # Small delay between chunks 
+                    await asyncio.sleep(1)  # Small delay between chunks

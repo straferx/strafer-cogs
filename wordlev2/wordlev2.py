@@ -7,6 +7,7 @@ import typing  # isort:skip
 
 import io
 from collections import defaultdict
+import asyncio
 
 from PIL import Image, ImageDraw, ImageFont
 from redbot.core.data_manager import bundled_data_path
@@ -44,6 +45,7 @@ class Wordlev2(Cog):
             lambda: defaultdict(list)
         )
         self.font: ImageFont.FreeTypeFont = None
+        self.views: typing.Dict[discord.Message, WordleGameView] = {}
 
     async def cog_load(self) -> None:
         await super().cog_load()
@@ -58,6 +60,19 @@ class Wordlev2(Cog):
                             continue
                         getattr(self, dirname)[lang.value][len(word)].append(word)
         self.font = ImageFont.truetype(str(data_path / "ClearSans-Bold.ttf"), 80)
+        
+        # Start periodic cleanup task
+        self.bot.loop.create_task(self._periodic_cleanup())
+
+    async def _periodic_cleanup(self) -> None:
+        """Run cleanup every 5 minutes to prevent memory leaks."""
+        while True:
+            try:
+                await asyncio.sleep(300)  # 5 minutes
+                await self.cleanup_stale_games()
+            except Exception:
+                # Log error but continue cleanup
+                pass
 
     @property
     def games(self) -> typing.Dict[discord.Message, WordleGameView]:
@@ -303,12 +318,18 @@ class Wordlev2(Cog):
         You can find the rules of the game by clicking on the button after starting the game.
         Available languages: `en`, `fr`, `de`, `es`, `it`, `pt`, `nl`, `cs`, `el`, `id`, `ie`, `ph`, `pl`, `ua`, `ru`, `sv` and `tr`.
         """
-        has_won, attempts = await WordleGameView(
+        game_view = WordleGameView(
             self,
             lang=lang,
             length=length,
             max_attempts=max_attempts,
-        ).start(ctx)
+        )
+        has_won, attempts = await game_view.start(ctx)
+        
+        # Clean up the game from memory after completion
+        if hasattr(game_view, '_message') and game_view._message:
+            self.cleanup_game(game_view._message)
+        
         data = await self.config.member(ctx.author).all()
         data["games"] += 1
         if has_won:
@@ -414,3 +435,45 @@ class Wordlev2(Cog):
         )
         embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon)
         await ctx.send(embed=embed)
+
+    @commands.guild_only()
+    @commands.bot_has_permissions(embed_links=True)
+    @commands.command()
+    async def wordlecleanup(self, ctx: commands.Context) -> None:
+        """Clean up stale Wordle games to free memory."""
+        before_count = len(self.views)
+        await self.cleanup_stale_games()
+        after_count = len(self.views)
+        cleaned = before_count - after_count
+        
+        embed = discord.Embed(
+            title=_("Wordle Cleanup Complete"),
+            description=_("Cleaned up {cleaned} stale games. Active games: {active}").format(
+                cleaned=cleaned, active=after_count
+            ),
+            color=await ctx.embed_color(),
+        )
+        await ctx.send(embed=embed)
+
+    async def cog_unload(self) -> None:
+        """Clean up all games when cog is unloaded."""
+        self.views.clear()
+        await super().cog_unload()
+
+    def cleanup_game(self, message: discord.Message) -> None:
+        """Remove completed game from memory to prevent memory leaks."""
+        if message in self.views:
+            del self.views[message]
+
+    async def cleanup_stale_games(self) -> None:
+        """Clean up stale games that may have timed out or been deleted."""
+        current_time = discord.utils.utcnow()
+        stale_messages = []
+        
+        for message, view in self.views.items():
+            # Remove games older than 15 minutes (10 min timeout + 5 min buffer)
+            if (current_time - message.created_at).total_seconds() > 900:
+                stale_messages.append(message)
+        
+        for message in stale_messages:
+            self.cleanup_game(message)

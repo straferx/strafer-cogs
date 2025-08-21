@@ -66,6 +66,7 @@ class Wordlev2(Cog):
     async def generate_image(
         self,
         word: str,
+        lang: Lang,
         attempts: typing.List[str] = [],
         max_attempts: int = 6,
     ) -> discord.File:
@@ -74,8 +75,37 @@ class Wordlev2(Cog):
         # Track letter statuses for keyboard
         letter_status = {}  # letter -> color (priority: green > yellow > gray)
         
-        # Calculate keyboard dimensions
-        keyboard_rows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"]
+        # Language-specific keyboard layouts
+        KEYBOARD_LAYOUTS: typing.Dict[Lang, typing.List[str]] = {
+            Lang.ENGLISH: ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"],
+            Lang.NEDERLANDS: ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"],
+            Lang.INDONESIAN: ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"],
+            Lang.GAEILGE: ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM", "ÁÉÍÓÚ"],
+            Lang.FILIPINO: ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"],
+            Lang.ITALIANO: ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"],
+            Lang.PORTUGUES: ["QWERTYUIOP", "ASDFGHJKLÇ", "ZXCVBNM"],
+            Lang.FRANCAIS: ["AZERTYUIOP", "QSDFGHJKLM", "WXCVBN"],
+            Lang.DEUTSCH: ["QWERTZUIOPÜ", "ASDFGHJKLÖÄ", "YXCVBNMß"],
+            Lang.ESPANOL: ["QWERTYUIOP", "ASDFGHJKLÑ", "ZXCVBNM"],
+            Lang.SVENSKA: ["QWERTYUIOPÅ", "ASDFGHJKLÖÄ", "ZXCVBNM"],
+            Lang.CESTINA: ["QWERTZUIOP", "ASDFGHJKL", "YXCVBNM", "ĚŠČŘŽÝÁÍÉŮŤŇ"],
+            Lang.POLSKI: ["QWERTYUIOP", "ASDFGHJKLŁ", "ZXCVBNM", "ĄĆĘŃÓŚŹŻ"],
+            Lang.TURKCE: ["QWERTYUIOPĞÜ", "ASDFGHJKLŞİ", "ZXCVBNMÖÇ"],
+            Lang.ELLENIKA: [";"],  # Placeholder, will be overridden below
+            Lang.RUSSIAN: ["ЙЦУКЕНГШЩЗХЪ", "ФЫВАПРОЛДЖЭ", "ЯЧСМИТЬБЮ"],
+            Lang.UKRAIHCBKA: ["ЙЦУКЕНГШЩЗХЇ", "ФІВАПРОЛДЖЄ", "ЯЧСМИТЬБЮ"],
+        }
+        # Greek (modern Greek keyboard layout)
+        KEYBOARD_LAYOUTS[Lang.ELLENIKA] = [
+            "ΣΕΡΤΥΘΙΟΠ",
+            "ΑΣΔΦΓΗΞΚΛ",
+            "ΖΧΨΩΒΝΜ",
+        ]
+        
+        keyboard_rows = KEYBOARD_LAYOUTS.get(
+            lang, ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"]
+        )
+        
         key_size = 50
         key_spacing = 5
         keyboard_height = len(keyboard_rows) * (key_size + key_spacing) + key_spacing
@@ -86,7 +116,7 @@ class Wordlev2(Cog):
         grid_height = max_attempts * size + (max_attempts + 1) * between + 2 * border
         
         # Make image wider to accommodate keyboard
-        max_keyboard_width = len(keyboard_rows[0]) * (key_size + key_spacing) + key_spacing
+        max_keyboard_width = max(len(r) for r in keyboard_rows) * (key_size + key_spacing) + key_spacing
         image_width = max(grid_width, max_keyboard_width + 2 * border)
         image_height = grid_height + keyboard_top_margin + keyboard_height
         
@@ -165,10 +195,10 @@ class Wordlev2(Cog):
         keyboard_y = grid_height + keyboard_top_margin
         
         for row_idx, row in enumerate(keyboard_rows):
-            # Calculate row offset for centering (2nd row is indented, 3rd row more)
-            if row_idx == 1:  # ASDFGHJKL row
+            # Calculate row offset for centering (2nd row is indented, 3rd+ row more)
+            if row_idx == 1:  # middle row
                 row_offset = key_size // 2
-            elif row_idx == 2:  # ZXCVBNM row
+            elif row_idx >= 2:  # subsequent rows
                 row_offset = key_size + key_spacing
             else:
                 row_offset = 0
@@ -182,8 +212,9 @@ class Wordlev2(Cog):
                 key_y = keyboard_y + row_idx * (key_size + key_spacing)
                 
                 # Determine key color
-                if letter.lower() in letter_status:
-                    key_color = letter_status[letter.lower()]
+                base_letter = letter.lower()
+                if base_letter in letter_status:
+                    key_color = letter_status[base_letter]
                 else:
                     key_color = (211, 214, 218)  # Light gray for unused
                 
@@ -198,7 +229,7 @@ class Wordlev2(Cog):
                 
                 # Draw letter on key
                 letter_width = keyboard_font.getlength(letter)
-                text_color = (255, 255, 255) if letter.lower() in letter_status else (0, 0, 0)
+                text_color = (255, 255, 255) if base_letter in letter_status else (0, 0, 0)
                 draw.text(
                     (
                         key_x + (key_size - letter_width) // 2,
@@ -248,7 +279,7 @@ class Wordlev2(Cog):
             text=ctx.guild.name,
             icon_url=ctx.guild.icon,
         )
-        file = await self.generate_image(word, attempts, max_attempts=max_attempts)
+        file = await self.generate_image(word, lang, attempts, max_attempts=max_attempts)
         embed.set_image(url="attachment://wordle.png")
         return {
             "embed": embed,

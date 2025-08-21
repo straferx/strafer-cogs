@@ -395,10 +395,8 @@ class Wordlev2(Cog):
             )
 
         def fmt_entry_games(rank: int, mid: int, games: int, wins: int, wr: float) -> str:
-            member = ctx.guild.get_member(mid)
-            name = member.display_name if member else f"<@{mid}>"
-            return _("{rank}. {name} — {games} games, {wins} wins ({wr:.2%})").format(
-                rank=rank, name=name, games=games, wins=wins, wr=wr
+            return _("{rank}. <@{mid}> — {games} games ({wr:.2%})").format(
+                rank=rank, mid=mid, games=games, wr=wr
             )
 
         embed = discord.Embed(

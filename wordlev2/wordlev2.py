@@ -414,5 +414,13 @@ class Wordlev2(Cog):
             ),
             inline=False,
         )
+        embed.add_field(
+            name=_("Top by Games Played"),
+            value="\n".join(
+                fmt_entry_games(i, mid, games, wins, wr)
+                for i, (mid, games, wins, wr) in enumerate(top_by_games, start=1)
+            ),
+            inline=False,
+        )
         embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon)
         await ctx.send(embed=embed)

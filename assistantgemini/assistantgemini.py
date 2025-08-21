@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from redbot.core import Config, commands
 from redbot.core.bot import Red
 
-from .abc import CompositeMetaClass
+from .abc import MixinMeta
 from .commands.base import AssistantCommands
 from .commands.admin import AdminCommands
 from .common.api import API
@@ -23,14 +23,13 @@ log = logging.getLogger("red.vrt.assistantgemini")
 
 
 class AssistantGemini(
-    API,
     AssistantCommands,
     AdminCommands,
     AssistantFunctions,
     AssistantListener,
     ChatHandler,
+    API,
     commands.Cog,
-    metaclass=CompositeMetaClass,
 ):
     """
     Set up and configure an AI assistant (or chat) cog for your server with Google's Gemini language models.
@@ -56,8 +55,8 @@ class AssistantGemini(
             if key.split("-")[0] == str(user_id):
                 del self.db.conversations[key]
 
-    def __init__(self, bot: Red, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, bot: Red):
+        super().__init__()
         self.bot: Red = bot
         self.config = Config.get_conf(self, 117117118, force_registration=True)
         self.config.register_global(db={})
@@ -126,4 +125,4 @@ class AssistantGemini(
         except Exception as e:
             log.error(f"Failed to save configuration: {e}")
         finally:
-            self.saving = False 
+            self.saving = False

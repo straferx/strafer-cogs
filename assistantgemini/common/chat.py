@@ -7,15 +7,14 @@ from redbot.core import commands
 from redbot.core.i18n import Translator, cog_i18n
 from redbot.core.utils.chat_formatting import pagify
 
-from ..abc import MixinMeta
-from ..common.models import GuildSettings, Conversation
+from .models import GuildSettings, Conversation
 
 log = logging.getLogger("red.vrt.assistantgemini.chat")
 _ = Translator("AssistantGemini", __file__)
 
 
 @cog_i18n(_)
-class ChatHandler(MixinMeta):
+class ChatHandler:
     async def get_conversation(self, channel_id: int, user_id: int) -> Conversation:
         """Get or create a conversation for a user in a channel"""
         key = f"{user_id}-{channel_id}"
@@ -109,4 +108,4 @@ class ChatHandler(MixinMeta):
             for chunk in chunks:
                 if chunk.strip():
                     await ctx.send(chunk)
-                    await asyncio.sleep(1)  # Small delay between chunks 
+                    await asyncio.sleep(1)  # Small delay between chunks

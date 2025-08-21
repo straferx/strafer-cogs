@@ -4,7 +4,6 @@ import discord
 from redbot.core import commands
 from redbot.core.i18n import Translator, cog_i18n
 
-from .abc import MixinMeta
 from .common.models import GuildSettings
 
 log = logging.getLogger("red.vrt.assistantgemini.listener")
@@ -12,7 +11,7 @@ _ = Translator("AssistantGemini", __file__)
 
 
 @cog_i18n(_)
-class AssistantListener(MixinMeta):
+class AssistantListener:
     def __init__(self):
         super().__init__()
         self._listener_registered = False

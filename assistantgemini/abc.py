@@ -1,28 +1,17 @@
 from abc import ABC
-from typing import get_type_hints
-
 from redbot.core import commands
 
 
-class MixinMeta(type):
+class MixinMeta(ABC):
     """
-    A metaclass that allows ABCs to be used as mixins without
-    conflicting with the metaclass used by `discord.py` and `redbot.core`
+    A mixin base class for command mixins
     """
-
-    def __new__(mcs, name, bases, cls_dict):
-        cls = super().__new__(mcs, name, bases, cls_dict)
-        if ABC in bases:
-            # If this is an ABC, remove it from the bases to avoid metaclass conflicts
-            bases = tuple(base for base in bases if base is not ABC)
-            cls = super().__new__(mcs, name, bases, cls_dict)
-        return cls
+    pass
 
 
-class CompositeMetaClass(type(commands.Cog), MixinMeta):
+class CompositeMetaClass(type(commands.Cog)):
     """
     This allows the metaclass used for proper type detection to
     coexist with discord.py's metaclass
     """
-
-    pass 
+    pass

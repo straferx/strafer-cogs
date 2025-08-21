@@ -4,14 +4,12 @@ from typing import Dict, List, Optional, Any
 from redbot.core import commands
 from redbot.core.i18n import Translator, cog_i18n
 
-from ..abc import MixinMeta
-
 log = logging.getLogger("red.vrt.assistantgemini.functions")
 _ = Translator("AssistantGemini", __file__)
 
 
 @cog_i18n(_)
-class AssistantFunctions(MixinMeta):
+class AssistantFunctions:
     def __init__(self):
         super().__init__()
         # {cog_name: {function_name: {"permission_level": "user", "schema": function_json_schema}}}
@@ -86,4 +84,4 @@ class AssistantFunctions(MixinMeta):
         for cog_functions in self.registry.values():
             if function_name in cog_functions:
                 return cog_functions[function_name]["schema"]
-        return None 
+        return None

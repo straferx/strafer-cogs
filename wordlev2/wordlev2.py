@@ -7,8 +7,6 @@ import typing  # isort:skip
 
 import io
 from collections import defaultdict
-import asyncio
-import logging
 
 from PIL import Image, ImageDraw, ImageFont
 from redbot.core.data_manager import bundled_data_path
@@ -18,8 +16,7 @@ from .view import Lang, WordleGameView
 # Credits:
 # General repo credits.
 
-_: Translator = Translator("Wordlev2", __file__)
-logger = logging.getLogger("red.wordlev2")
+_: Translator = Translator("WordleGame", __file__)
 
 
 @cog_i18n(_)
@@ -47,7 +44,6 @@ class Wordlev2(Cog):
             lambda: defaultdict(list)
         )
         self.font: ImageFont.FreeTypeFont = None
-        self.views: typing.Dict[discord.Message, WordleGameView] = {}
 
     async def cog_load(self) -> None:
         await super().cog_load()
@@ -62,21 +58,6 @@ class Wordlev2(Cog):
                             continue
                         getattr(self, dirname)[lang.value][len(word)].append(word)
         self.font = ImageFont.truetype(str(data_path / "ClearSans-Bold.ttf"), 80)
-        
-        # Start periodic cleanup task
-        self.bot.loop.create_task(self._periodic_cleanup())
-
-    async def _periodic_cleanup(self) -> None:
-        """Run cleanup every 5 minutes to prevent memory leaks."""
-        while True:
-            try:
-                await asyncio.sleep(300)  # 5 minutes
-                await self.cleanup_stale_games()
-                logger.debug("Periodic cleanup completed successfully")
-            except Exception as e:
-                logger.error(f"Error in periodic cleanup: {e}", exc_info=True)
-                # Continue cleanup even if there's an error
-                continue
 
     @property
     def games(self) -> typing.Dict[discord.Message, WordleGameView]:
@@ -85,195 +66,75 @@ class Wordlev2(Cog):
     async def generate_image(
         self,
         word: str,
-        lang: Lang,
         attempts: typing.List[str] = [],
         max_attempts: int = 6,
     ) -> discord.File:
-        try:
-            length, size, between, border = len(word), 70, 10, 5
-            
-            # Track letter statuses for keyboard
-            letter_status = {}  # letter -> color (priority: green > yellow > gray)
-            
-            # Language-specific keyboard layouts
-            KEYBOARD_LAYOUTS: typing.Dict[Lang, typing.List[str]] = {
-                Lang.ENGLISH: ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"],
-                Lang.NEDERLANDS: ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"],
-                Lang.INDONESIAN: ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"],
-                Lang.GAEILGE: ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM", "ÁÉÍÓÚ"],
-                Lang.FILIPINO: ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"],
-                Lang.ITALIANO: ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"],
-                Lang.PORTUGUES: ["QWERTYUIOP", "ASDFGHJKLÇ", "ZXCVBNM"],
-                Lang.FRANCAIS: ["AZERTYUIOP", "QSDFGHJKLM", "WXCVBN"],
-                Lang.DEUTSCH: ["QWERTZUIOPÜ", "ASDFGHJKLÖÄ", "YXCVBNMß"],
-                Lang.ESPANOL: ["QWERTYUIOP", "ASDFGHJKLÑ", "ZXCVBNM"],
-                Lang.SVENSKA: ["QWERTYUIOPÅ", "ASDFGHJKLÖÄ", "ZXCVBNM"],
-                Lang.CESTINA: ["QWERTZUIOP", "ASDFGHJKL", "YXCVBNM", "ĚŠČŘŽÝÁÍÉŮŤŇ"],
-                Lang.POLSKI: ["QWERTYUIOP", "ASDFGHJKLŁ", "ZXCVBNM", "ĄĆĘŃÓŚŹŻ"],
-                Lang.TURKCE: ["QWERTYUIOPĞÜ", "ASDFGHJKLŞİ", "ZXCVBNMÖÇ"],
-                Lang.ELLENIKA: [";"],  # Placeholder, will be overridden below
-                Lang.RUSSIAN: ["ЙЦУКЕНГШЩЗХЪ", "ФЫВАПРОЛДЖЭ", "ЯЧСМИТЬБЮ"],
-                Lang.UKRAIHCBKA: ["ЙЦУКЕНГШЩЗХЇ", "ФІВАПРОЛДЖЄ", "ЯЧСМИТЬБЮ"],
-            }
-            # Greek (modern Greek keyboard layout)
-            KEYBOARD_LAYOUTS[Lang.ELLENIKA] = [
-                "ΣΕΡΤΥΘΙΟΠ",
-                "ΑΣΔΦΓΗΞΚΛ",
-                "ΖΧΨΩΒΝΜ",
-            ]
-            
-            keyboard_rows = KEYBOARD_LAYOUTS.get(
-                lang, ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"]
-            )
-            
-            key_size = 50
-            key_spacing = 5
-            keyboard_height = len(keyboard_rows) * (key_size + key_spacing) + key_spacing
-            keyboard_top_margin = 30
-            
-            # Calculate image dimensions
-            grid_width = length * size + (length + 1) * between + 2 * border
-            grid_height = max_attempts * size + (max_attempts + 1) * between + 2 * border
-            
-            # Make image wider to accommodate keyboard
-            max_keyboard_width = max(len(r) for r in keyboard_rows) * (key_size + key_spacing) + key_spacing
-            image_width = max(grid_width, max_keyboard_width + 2 * border)
-            image_height = grid_height + keyboard_top_margin + keyboard_height
-            
-            image = Image.new("RGB", (image_width, image_height), (255, 255, 255))
-            draw = ImageDraw.Draw(image)
-            
-            # Center the grid if keyboard is wider
-            grid_offset_x = (image_width - grid_width) // 2 if image_width > grid_width else 0
-            
-            # Draw the word grid and track letter statuses
-            for i, attempt in enumerate(attempts):
-                for j in range(length):
-                    letter = attempt[j]
-                    if letter == word[j]:
-                        color = (106, 170, 100)  # Green
-                        letter_status[letter] = color  # Green has highest priority
-                    elif any(letter == word[k] and attempt[k] != word[k] for k in range(length)):
-                        color = (202, 180, 86)  # Yellow
-                        # Only update to yellow if not already green
-                        if letter not in letter_status or letter_status[letter] != (106, 170, 100):
-                            letter_status[letter] = color
-                    else:
-                        color = (120, 124, 126)  # Grey
-                        # Only update to grey if not already green or yellow
-                        if letter not in letter_status:
-                            letter_status[letter] = color
-                            
-                    draw.rectangle(
-                        [
-                            (
-                                grid_offset_x + border + (j + 1) * between + j * size,
-                                border + (i + 1) * between + i * size,
-                            ),
-                            (
-                                grid_offset_x + border + (j + 1) * between + (j + 1) * size,
-                                border + (i + 1) * between + (i + 1) * size,
-                            ),
-                        ],
-                        fill=color,
-                    )
-                    s = self.font.getlength(letter.upper())
-                    draw.text(
-                        (
-                            grid_offset_x + border + (j + 1) * between + j * size + size // 2 - s // 2,
-                            border + (i + 1) * between + i * size - size * 0.36,
-                        ),
-                        letter.upper(),
-                        font=self.font,
-                        fill=(255, 255, 255),
-                    )
-                    
-            # Draw empty grid cells
-            for i in range(max_attempts - len(attempts)):
-                for j in range(length):
-                    draw.rectangle(
-                        [
-                            (
-                                grid_offset_x + border + (j + 1) * between + j * size,
-                                border
-                                + (len(attempts) + i + 1) * between
-                                + (len(attempts) + i) * size,
-                            ),
-                            (
-                                grid_offset_x + border + (j + 1) * between + (j + 1) * size,
-                                border
-                                + (len(attempts) + i + 1) * between
-                                + (len(attempts) + i + 1) * size,
-                            ),
-                        ],
-                        outline=(211, 214, 218),
-                        width=3,
-                    )
-            
-            # Draw keyboard
-            keyboard_font = ImageFont.truetype(str(bundled_data_path(self) / "ClearSans-Bold.ttf"), 30)
-            keyboard_y = grid_height + keyboard_top_margin
-            
-            for row_idx, row in enumerate(keyboard_rows):
-                # Calculate row offset for centering (2nd row is indented, 3rd+ row more)
-                if row_idx == 1:  # middle row
-                    row_offset = key_size // 2
-                elif row_idx >= 2:  # subsequent rows
-                    row_offset = key_size + key_spacing
+        length, size, between, border = len(word), 70, 10, 5
+        image = Image.new(
+            "RGB",
+            (
+                length * size + (length + 1) * between + 2 * border,
+                max_attempts * size + (max_attempts + 1) * between + 2 * border,
+            ),
+            (255, 255, 255),
+        )
+        draw = ImageDraw.Draw(image)
+        for i, attempt in enumerate(attempts):
+            for j in range(length):
+                letter = attempt[j]
+                if letter == word[j]:
+                    color = (106, 170, 100)  # Green
+                elif any(letter == word[k] and attempt[k] != word[k] for k in range(length)):
+                    color = (202, 180, 86)  # Yellow
                 else:
-                    row_offset = 0
-                
-                # Center the row
-                row_width = len(row) * (key_size + key_spacing) - key_spacing
-                row_x = (image_width - row_width - row_offset) // 2 + row_offset
-                
-                for col_idx, letter in enumerate(row):
-                    key_x = row_x + col_idx * (key_size + key_spacing)
-                    key_y = keyboard_y + row_idx * (key_size + key_spacing)
-                    
-                    # Determine key color
-                    base_letter = letter.lower()
-                    if base_letter in letter_status:
-                        key_color = letter_status[base_letter]
-                    else:
-                        key_color = (211, 214, 218)  # Light gray for unused
-                    
-                    # Draw key background
-                    draw.rectangle(
-                        [
-                            (key_x, key_y),
-                            (key_x + key_size, key_y + key_size)
-                        ],
-                        fill=key_color,
-                    )
-                    
-                    # Draw letter on key
-                    letter_width = keyboard_font.getlength(letter)
-                    text_color = (255, 255, 255) if base_letter in letter_status else (0, 0, 0)
-                    draw.text(
+                    color = (120, 124, 126)  # Grey
+                draw.rectangle(
+                    [
                         (
-                            key_x + (key_size - letter_width) // 2,
-                            key_y + (key_size - 30) // 2
+                            border + (j + 1) * between + j * size,
+                            border + (i + 1) * between + i * size,
                         ),
-                        letter,
-                        font=keyboard_font,
-                        fill=text_color,
-                    )
-            
-            buffer = io.BytesIO()
-            image.save(buffer, "png")
-            buffer.seek(0)
-            
-            # Clean up PIL objects to free memory
-            del image, draw, keyboard_font
-            return discord.File(buffer, filename="wordle.png")
-            
-        except Exception as e:
-            logger.error(f"Error generating Wordle image: {e}", exc_info=True)
-            # Return a simple text-based fallback
-            raise commands.UserFeedbackCheckFailure(
-                _("Failed to generate image. Please try again later.")
-            )
+                        (
+                            border + (j + 1) * between + (j + 1) * size,
+                            border + (i + 1) * between + (i + 1) * size,
+                        ),
+                    ],
+                    fill=color,
+                )
+                s = self.font.getlength(letter.upper())
+                draw.text(
+                    (
+                        border + (j + 1) * between + j * size + size // 2 - s // 2,
+                        border + (i + 1) * between + i * size - size * 0.36,
+                    ),
+                    letter.upper(),
+                    font=self.font,
+                    fill=(255, 255, 255),
+                )
+        for i in range(max_attempts - len(attempts)):
+            for j in range(length):
+                draw.rectangle(
+                    [
+                        (
+                            border + (j + 1) * between + j * size,
+                            border
+                            + (len(attempts) + i + 1) * between
+                            + (len(attempts) + i) * size,
+                        ),
+                        (
+                            border + (j + 1) * between + (j + 1) * size,
+                            border
+                            + (len(attempts) + i + 1) * between
+                            + (len(attempts) + i + 1) * size,
+                        ),
+                    ],
+                    outline=(211, 214, 218),
+                    width=3,
+                )
+        buffer = io.BytesIO()
+        image.save(buffer, "png")
+        buffer.seek(0)
+        return discord.File(buffer, filename="wordle.png")
 
     async def get_kwargs(
         self,
@@ -309,7 +170,7 @@ class Wordlev2(Cog):
             text=ctx.guild.name,
             icon_url=ctx.guild.icon,
         )
-        file = await self.generate_image(word, lang, attempts, max_attempts=max_attempts)
+        file = await self.generate_image(word, attempts, max_attempts=max_attempts)
         embed.set_image(url="attachment://wordle.png")
         return {
             "embed": embed,
@@ -333,30 +194,18 @@ class Wordlev2(Cog):
         You can find the rules of the game by clicking on the button after starting the game.
         Available languages: `en`, `fr`, `de`, `es`, `it`, `pt`, `nl`, `cs`, `el`, `id`, `ie`, `ph`, `pl`, `ua`, `ru`, `sv` and `tr`.
         """
-        try:
-            game_view = WordleGameView(
-                self,
-                lang=lang,
-                length=length,
-                max_attempts=max_attempts,
-            )
-            has_won, attempts = await game_view.start(ctx)
-            
-            # Clean up the game from memory after completion
-            if hasattr(game_view, '_message') and game_view._message:
-                self.cleanup_game(game_view._message)
-            
-            data = await self.config.member(ctx.author).all()
-            data["games"] += 1
-            if has_won:
-                data["wins"] += 1
-                data["guess_distribution"][len(attempts) - 1] += 1
-            await self.config.member(ctx.author).set(data)
-            
-        except Exception as e:
-            logger.error(f"Error in wordle command: {e}", exc_info=True)
-            await ctx.send(_("An error occurred while starting the game. Please try again later."))
-            return
+        has_won, attempts = await WordleGameView(
+            self,
+            lang=lang,
+            length=length,
+            max_attempts=max_attempts,
+        ).start(ctx)
+        data = await self.config.member(ctx.author).all()
+        data["games"] += 1
+        if has_won:
+            data["wins"] += 1
+            data["guess_distribution"][len(attempts) - 1] += 1
+        await self.config.member(ctx.author).set(data)
 
     @commands.guild_only()
     @commands.bot_has_permissions(embed_links=True)
@@ -404,157 +253,3 @@ class Wordlev2(Cog):
             icon_url=ctx.guild.icon,
         )
         await ctx.send(embed=embed)
-
-    @commands.guild_only()
-    @commands.bot_has_permissions(embed_links=True)
-    @commands.hybrid_command(aliases=["wordleleaderboard", "wordlerank"])
-    async def wordletop(
-        self,
-        ctx: commands.Context,
-        limit: typing.Optional[commands.Range[int, 1, 25]] = 10,
-    ) -> None:
-        """Show top users by win percentage and games played."""
-        members_data = await self.config.all_members(ctx.guild)
-        players: typing.List[typing.Tuple[int, int, int, float]] = []
-        for member_id, data in members_data.items():
-            games = data.get("games", 0)
-            wins = data.get("wins", 0)
-            if games <= 0:
-                continue
-            win_rate = wins / games
-            players.append((int(member_id), games, wins, win_rate))
-
-        if not players:
-            await ctx.send(_("No data yet. Play some games first!"))
-            return
-
-        top_by_win = sorted(players, key=lambda t: (t[3], t[1]), reverse=True)[:limit]
-        top_by_games = sorted(players, key=lambda t: (t[1], t[3]), reverse=True)[:limit]
-
-        def fmt_entry(rank: int, mid: int, games: int, wins: int, wr: float) -> str:
-            return _("{rank}. <@{mid}> — {wr:.2%} ({wins}/{games})").format(
-                rank=rank, mid=mid, wr=wr, wins=wins, games=games
-            )
-
-        def fmt_entry_games(rank: int, mid: int, games: int, wins: int, wr: float) -> str:
-            return _("{rank}. <@{mid}> — {games} games ({wr:.2%})").format(
-                rank=rank, mid=mid, games=games, wr=wr
-            )
-
-        embed = discord.Embed(
-            title=_("Wordle Leaderboards"),
-            color=await ctx.embed_color(),
-            timestamp=ctx.message.created_at,
-        )
-        embed.add_field(
-            name=_("Top by Games Played"),
-            value="\n".join(
-                fmt_entry_games(i, mid, games, wins, wr)
-                for i, (mid, games, wins, wr) in enumerate(top_by_games, start=1)
-            ),
-            inline=False,
-        )
-        embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon)
-        await ctx.send(embed=embed)
-
-    @commands.guild_only()
-    @commands.bot_has_permissions(embed_links=True)
-    @commands.command()
-    async def wordlehealth(self, ctx: commands.Context) -> None:
-        """Check the health status of the Wordle cog."""
-        try:
-            active_games = len(self.views)
-            memory_usage = f"{active_games} active games"
-            
-            embed = discord.Embed(
-                title=_("Wordle Cog Health Status"),
-                color=await ctx.embed_color(),
-                timestamp=ctx.message.created_at,
-            )
-            embed.add_field(
-                name=_("Memory Usage"),
-                value=memory_usage,
-                inline=True,
-            )
-            embed.add_field(
-                name=_("Status"),
-                value=_("✅ Healthy") if active_games < 100 else _("⚠️ High Memory Usage"),
-                inline=True,
-            )
-            
-            if active_games > 50:
-                embed.add_field(
-                    name=_("Recommendation"),
-                    value=_("Run `{prefix}wordlecleanup` to free memory").format(
-                        prefix=ctx.prefix
-                    ),
-                    inline=False,
-                )
-            
-            await ctx.send(embed=embed)
-            
-        except Exception as e:
-            logger.error(f"Error in wordlehealth command: {e}", exc_info=True)
-            await ctx.send(_("Error checking health status."))
-
-    @commands.guild_only()
-    @commands.bot_has_permissions(embed_links=True)
-    @commands.command()
-    async def wordlecleanup(self, ctx: commands.Context) -> None:
-        """Clean up stale Wordle games to free memory."""
-        before_count = len(self.views)
-        await self.cleanup_stale_games()
-        after_count = len(self.views)
-        cleaned = before_count - after_count
-        
-        embed = discord.Embed(
-            title=_("Wordle Cleanup Complete"),
-            description=_("Cleaned up {cleaned} stale games. Active games: {active}").format(
-                cleaned=cleaned, active=after_count
-            ),
-            color=await ctx.embed_color(),
-        )
-        await ctx.send(embed=embed)
-
-    async def cog_unload(self) -> None:
-        """Clean up all games when cog is unloaded."""
-        try:
-            logger.info("Unloading Wordle cog, cleaning up all games")
-            self.views.clear()
-            await super().cog_unload()
-        except Exception as e:
-            logger.error(f"Error during cog unload: {e}", exc_info=True)
-
-    def cleanup_game(self, message: discord.Message) -> None:
-        """Remove completed game from memory to prevent memory leaks."""
-        try:
-            if message in self.views:
-                del self.views[message]
-                logger.debug(f"Cleaned up game for message {message.id}")
-        except Exception as e:
-            logger.warning(f"Error cleaning up game: {e}")
-
-    async def cleanup_stale_games(self) -> None:
-        """Clean up stale games that may have timed out or been deleted."""
-        try:
-            current_time = discord.utils.utcnow()
-            stale_messages = []
-            
-            for message, view in self.views.items():
-                try:
-                    # Remove games older than 15 minutes (10 min timeout + 5 min buffer)
-                    if (current_time - message.created_at).total_seconds() > 900:
-                        stale_messages.append(message)
-                except Exception as e:
-                    logger.warning(f"Error checking message age: {e}")
-                    # If we can't check the message, consider it stale
-                    stale_messages.append(message)
-            
-            for message in stale_messages:
-                try:
-                    self.cleanup_game(message)
-                except Exception as e:
-                    logger.warning(f"Error cleaning up stale message: {e}")
-                    
-        except Exception as e:
-            logger.error(f"Error in cleanup_stale_games: {e}", exc_info=True)

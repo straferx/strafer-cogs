@@ -1,5 +1,5 @@
 {
-    "author": ["AAA3A, enhanced by strafer"],
+    "author": ["AAA3A"],
     "name": "WordleGame",
     "install_msg": "Thank you for installing this cog!\nDo `[p]help CogName` to get the list of commands and their description. If you enjoy my work, please consider donating on [Buy Me a Coffee](<https://www.buymeacoffee.com/aaa3a>) or [Ko-Fi](<https://ko-fi.com/aaa3a>)!",
     "short": "Play a match of Wordle game, in multiple languages and lengths!",

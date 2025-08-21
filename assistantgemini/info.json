@@ -1,0 +1,37 @@
+{
+  "author": ["Vertyco"],
+  "description": "Set up and configure an AI assistant (or chat) cog for your server with Google's Gemini language models, with configurable prompt injection, dynamic embeddings, custom function calling, and more",
+  "disabled": false,
+  "end_user_data_statement": "This cog stores prompts and Gemini API keys on a per server basis. If enabled, conversations with the bot are also persistently stored",
+  "hidden": false,
+  "install_msg": "Thank you for installing AssistantGemini! type `[p]assistantgemini` to see all commands. and `[p]chathelp` for tips on how to interact.\nYou will need a [Gemini API key](https://aistudio.google.com/app/apikey) **per server** via `[p]assistantgemini geminikey`.\n\n**Warning**\nIt is not recommended to run this cog on a public bot or on a server with limited resources!\n\n**Note**\nThis cog allows other 3rd party cogs to register functions with it, extending functionality. Be aware of what functions other cogs are registering with `[p]customfunc`\n\nDOCUMENTATION: https://github.com/vertyco/vrt-cogs/blob/main/assistantgemini/README.md",
+  "min_bot_version": "3.5.0",
+  "min_python_version": [3, 10, 0],
+  "permissions": ["read_messages", "send_messages", "embed_links", "attach_files"],
+  "required_cogs": {},
+  "requirements": [
+    "aiocache",
+    "chromadb",
+    "json5",
+    "msgpack",
+    "numpy",
+    "google-generativeai>=0.8.0",
+    "pandas",
+    "pydantic",
+    "pytz",
+    "sentry_sdk",
+    "tenacity",
+    "ujson"
+  ],
+  "short": "Advanced AI assistant (or chat) cog for your server with Google's Gemini language models",
+  "tags": [
+    "utility",
+    "assistant",
+    "gemini",
+    "ai",
+    "chat",
+    "llm",
+    "language model"
+  ],
+  "type": "COG"
+} 

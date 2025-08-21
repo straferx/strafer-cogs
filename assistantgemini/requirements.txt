@@ -1,0 +1,13 @@
+google-generativeai>=0.8.0
+aiocache
+chromadb
+json5
+msgpack
+numpy
+pandas
+pydantic
+pytz
+sentry_sdk
+tenacity
+ujson
+httpx 

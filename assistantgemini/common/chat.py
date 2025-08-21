@@ -5,10 +5,10 @@ from typing import List, Dict, Optional, Any
 import discord
 from redbot.core import commands
 from redbot.core.i18n import Translator, cog_i18n
-from redbot.core.utils.chat_formatting import box, pagify
+from redbot.core.utils.chat_formatting import pagify
 
 from ..abc import MixinMeta
-from .models import GuildSettings, Conversation
+from ..common.models import GuildSettings, Conversation
 
 log = logging.getLogger("red.vrt.assistantgemini.chat")
 _ = Translator("AssistantGemini", __file__)

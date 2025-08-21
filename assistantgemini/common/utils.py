@@ -2,8 +2,6 @@ import json
 import logging
 from typing import Dict, Any, Optional
 
-from redbot.core.utils.chat_formatting import box
-
 log = logging.getLogger("red.vrt.assistantgemini.utils")
 
 

@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Optional, Any
 
 from redbot.core import commands
 from redbot.core.i18n import Translator, cog_i18n

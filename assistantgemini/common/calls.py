@@ -3,14 +3,20 @@ import typing as t
 from typing import List, Optional, Dict, Any
 
 import httpx
-import google.generativeai as genai
-from aiocache import cached
 from tenacity import (
     retry,
     retry_if_exception_type,
     stop_after_attempt,
     wait_random_exponential,
 )
+
+# Try to import google.generativeai, but handle if it's not available
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+    genai = None
 
 log = logging.getLogger("red.vrt.assistantgemini.calls")
 
@@ -39,6 +45,12 @@ async def request_chat_completion_raw(
     """
     Make a request to the Gemini API for chat completion
     """
+    if not GEMINI_AVAILABLE:
+        raise ImportError(
+            "google-generativeai package is not installed. "
+            "Please install it with: pip install google-generativeai"
+        )
+    
     try:
         # Configure the Gemini API
         genai.configure(api_key=api_key)

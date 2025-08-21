@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 import discord
 from redbot.core import commands
@@ -7,7 +6,7 @@ from redbot.core.i18n import Translator, cog_i18n
 from redbot.core.utils.chat_formatting import box, pagify
 
 from ..abc import MixinMeta
-from ..common.models import GuildSettings, NoAPIKey
+from ..common.models import GuildSettings
 from ..common.constants import DEFAULT_MODEL, DEFAULT_TEMPERATURE, DEFAULT_MAX_TOKENS
 
 log = logging.getLogger("red.vrt.assistantgemini.commands")

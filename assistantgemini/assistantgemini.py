@@ -17,6 +17,7 @@ from .common.api import API
 from .common.chat import ChatHandler
 from .common.functions import AssistantFunctions
 from .common.models import DB
+from .listener import AssistantListener
 
 log = logging.getLogger("red.vrt.assistantgemini")
 
@@ -26,6 +27,7 @@ class AssistantGemini(
     AssistantCommands,
     AdminCommands,
     AssistantFunctions,
+    AssistantListener,
     ChatHandler,
     commands.Cog,
     metaclass=CompositeMetaClass,

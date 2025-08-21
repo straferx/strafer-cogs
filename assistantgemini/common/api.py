@@ -5,7 +5,6 @@ from typing import List, Optional, Dict, Any
 import discord
 from redbot.core import commands
 from redbot.core.i18n import Translator, cog_i18n
-from redbot.core.utils.chat_formatting import box, humanize_number
 
 from ..abc import MixinMeta
 from .calls import request_chat_completion_raw, request_embedding_raw, count_tokens

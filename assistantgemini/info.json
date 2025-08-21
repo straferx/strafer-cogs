@@ -10,18 +10,10 @@
   "permissions": ["read_messages", "send_messages", "embed_links", "attach_files"],
   "required_cogs": {},
   "requirements": [
-    "aiocache",
-    "chromadb",
-    "json5",
-    "msgpack",
-    "numpy",
     "google-generativeai>=0.8.0",
-    "pandas",
-    "pydantic",
-    "pytz",
-    "sentry_sdk",
+    "httpx",
     "tenacity",
-    "ujson"
+    "pydantic"
   ],
   "short": "Advanced AI assistant (or chat) cog for your server with Google's Gemini language models",
   "tags": [

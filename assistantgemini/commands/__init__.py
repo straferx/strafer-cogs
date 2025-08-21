@@ -1,1 +1,2 @@
-# Commands module for AssistantGemini cog
+from .admin import AdminCommands
+from .base import AssistantCommands

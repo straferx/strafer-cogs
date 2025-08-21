@@ -362,3 +362,67 @@ class Wordlev2(Cog):
             icon_url=ctx.guild.icon,
         )
         await ctx.send(embed=embed)
+
+        @commands.guild_only()
+        @commands.bot_has_permissions(embed_links=True)
+        @commands.command(aliases=["wordleleaderboard", "wordlerank"])
+        async def wordletop(
+            self,
+            ctx: commands.Context,
+            limit: typing.Optional[commands.Range[int, 1, 25]] = 10,
+        ) -> None:
+            """Show top users by win percentage and games played."""
+            members_data = await self.config.all_members(ctx.guild)
+            players: typing.List[typing.Tuple[int, int, int, float]] = []
+            for member_id, data in members_data.items():
+                games = data.get("games", 0)
+                wins = data.get("wins", 0)
+                if games <= 0:
+                    continue
+                win_rate = wins / games
+                players.append((member_id, games, wins, win_rate))
+
+            if not players:
+                await ctx.send(_("No data yet. Play some games first!"))
+                return
+
+            top_by_win = sorted(players, key=lambda t: (t[3], t[1]), reverse=True)[:limit]
+            top_by_games = sorted(players, key=lambda t: (t[1], t[3]), reverse=True)[:limit]
+
+            def fmt_entry(rank: int, mid: int, games: int, wins: int, wr: float) -> str:
+                member = ctx.guild.get_member(mid)
+                name = member.display_name if member else f"<@{mid}>"
+                return _("{rank}. {name} — {wr:.2%} ({wins}/{games})").format(
+                    rank=rank, name=name, wr=wr, wins=wins, games=games
+                )
+
+            def fmt_entry_games(rank: int, mid: int, games: int, wins: int, wr: float) -> str:
+                member = ctx.guild.get_member(mid)
+                name = member.display_name if member else f"<@{mid}>"
+                return _("{rank}. {name} — {games} games, {wins} wins ({wr:.2%})").format(
+                    rank=rank, name=name, games=games, wins=wins, wr=wr
+                )
+
+            embed = discord.Embed(
+                title=_("Wordle Leaderboards"),
+                color=await ctx.embed_color(),
+                timestamp=ctx.message.created_at,
+            )
+            embed.add_field(
+                name=_("Top by Win Percentage"),
+                value="\n".join(
+                    fmt_entry(i, mid, games, wins, wr)
+                    for i, (mid, games, wins, wr) in enumerate(top_by_win, start=1)
+                ),
+                inline=False,
+            )
+            embed.add_field(
+                name=_("Top by Games Played"),
+                value="\n".join(
+                    fmt_entry_games(i, mid, games, wins, wr)
+                    for i, (mid, games, wins, wr) in enumerate(top_by_games, start=1)
+                ),
+                inline=False,
+            )
+            embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon)
+            await ctx.send(embed=embed)

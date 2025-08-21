@@ -390,10 +390,8 @@ class Wordlev2(Cog):
         top_by_games = sorted(players, key=lambda t: (t[1], t[3]), reverse=True)[:limit]
 
         def fmt_entry(rank: int, mid: int, games: int, wins: int, wr: float) -> str:
-            member = ctx.guild.get_member(mid)
-            name = member.display_name if member else f"<@{mid}>"
-            return _("{rank}. {name} — {wr:.2%} ({wins}/{games})").format(
-                rank=rank, name=name, wr=wr, wins=wins, games=games
+            return _("{rank}. <@{mid}> — {wr:.2%} ({wins}/{games})").format(
+                rank=rank, mid=mid, wr=wr, wins=wins, games=games
             )
 
         def fmt_entry_games(rank: int, mid: int, games: int, wins: int, wr: float) -> str:
@@ -413,14 +411,6 @@ class Wordlev2(Cog):
             value="\n".join(
                 fmt_entry(i, mid, games, wins, wr)
                 for i, (mid, games, wins, wr) in enumerate(top_by_win, start=1)
-            ),
-            inline=False,
-        )
-        embed.add_field(
-            name=_("Top by Games Played"),
-            value="\n".join(
-                fmt_entry_games(i, mid, games, wins, wr)
-                for i, (mid, games, wins, wr) in enumerate(top_by_games, start=1)
             ),
             inline=False,
         )

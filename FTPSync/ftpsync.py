@@ -141,7 +141,8 @@ class FTPSync(commands.Cog):
                     try:
                         # Get file info
                         file_info = await client.stat(file_path)
-                        if not file_info.is_file():
+                        # Check if it's a file (not a directory)
+                        if file_info.get('type') == 'dir':
                             failed_files.append(f"`{file_path}` (not a file)")
                             continue
                         

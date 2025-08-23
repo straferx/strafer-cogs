@@ -166,12 +166,8 @@ class FTPSync(commands.Cog):
                             import tempfile
                             import os
                             
-                            # Create a temporary file with a unique name
-                            import time
-                            temp_dir = tempfile.gettempdir()
-                            filename = os.path.basename(file_path)
-                            timestamp = int(time.time() * 1000)  # milliseconds
-                            temp_path = os.path.join(temp_dir, f"ftp_download_{timestamp}_{filename}")
+                            # Create a guaranteed unique temporary file
+                            temp_path = tempfile.mktemp(suffix='.tmp')
                             
                             try:
                                 # Download the file

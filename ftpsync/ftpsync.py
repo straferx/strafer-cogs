@@ -215,22 +215,12 @@ class Ftpsync(commands.Cog):
                         
                         files_to_send.append((filename, file_data))
                         
-                        # Send individual success message
-                        success_embed = discord.Embed(
-                            title="✅ File Downloaded",
-                            description=f"Successfully downloaded: `{filename}`",
-                            color=discord.Color.green()
-                        )
-                        await ctx.send(embed=success_embed)
+                        # Send simple success message
+                        await ctx.send(f"✅ Downloaded: `{filename}`")
                         
                     except Exception as e:
                         failed_files.append(f"`{file_path}` ({str(e)})")
-                        error_embed = discord.Embed(
-                            title="❌ Download Failed",
-                            description=f"Failed to download `{file_path}`: {str(e)}",
-                            color=discord.Color.red()
-                        )
-                        await ctx.send(embed=error_embed)
+                        await ctx.send(f"❌ Failed to download `{file_path}`: {str(e)}")
                 
                 # Send files to Discord
                 if files_to_send:
@@ -342,9 +332,13 @@ class Ftpsync(commands.Cog):
                         color=discord.Color.green()
                     )
                     if failed_files:
+                        # Truncate failed files list if too long
+                        failed_text = "\n".join(failed_files)
+                        if len(failed_text) > 1000:
+                            failed_text = failed_text[:1000] + "..."
                         final_embed.add_field(
                             name="Failed Files",
-                            value="\n".join(failed_files),
+                            value=failed_text,
                             inline=False
                         )
                     await status_msg.edit(embed=final_embed)

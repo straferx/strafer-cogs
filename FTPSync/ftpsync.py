@@ -234,32 +234,26 @@ class FTPSync(commands.Cog):
                 
                 # Send files to Discord
                 if files_to_send:
-                    if guild_config["use_zip_file"] and len(files_to_send) > 1:
-                        # Create zip file
-                        zip_data = io.BytesIO()
-                        with zipfile.ZipFile(zip_data, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                            for filename, file_data in files_to_send:
-                                zip_file.writestr(filename, file_data.getvalue())
+                    # Check file sizes (Discord limit is 25MB)
+                    max_size = 25 * 1024 * 1024  # 25MB in bytes
+                    
+                    for filename, file_data in files_to_send:
+                        file_size = len(file_data.getvalue())
+                        if file_size > max_size:
+                            size_mb = file_size / (1024 * 1024)
+                            await ctx.send(f"⚠️ File `{filename}` is too large ({size_mb:.1f}MB). Discord limit is 25MB.")
+                            continue
                         
-                        zip_data.seek(0)
-                        zip_file = discord.File(zip_data, filename="backup.zip")
-                        
-                        zip_embed = discord.Embed(
-                            title="📦 Backup Complete",
-                            description=f"Successfully backed up {len(files_to_send)} files as ZIP archive.",
-                            color=discord.Color.green()
-                        )
-                        await ctx.send(embed=zip_embed, file=zip_file)
-                    else:
-                        # Send individual files
-                        for filename, file_data in files_to_send:
+                        try:
                             discord_file = discord.File(file_data, filename=filename)
                             file_embed = discord.Embed(
                                 title="📄 File Backup",
-                                description=f"File: `{filename}`",
+                                description=f"File: `{filename}` ({(file_size / 1024 / 1024):.1f}MB)",
                                 color=discord.Color.blue()
                             )
                             await ctx.send(embed=file_embed, file=discord_file)
+                        except Exception as send_error:
+                            await ctx.send(f"❌ Failed to send `{filename}`: {str(send_error)}")
                     
                     # Final status update
                     final_embed = discord.Embed(

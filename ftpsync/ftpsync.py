@@ -125,6 +125,9 @@ class Ftpsync(commands.Cog):
                         ftp.connect(guild_config["ftp_host"], guild_config["ftp_port"])
                         ftp.login(guild_config["ftp_username"], guild_config["ftp_password"])
                         
+                        # Set binary mode for file operations
+                        ftp.voidcmd('TYPE I')
+                        
                         # Check if file exists and get size
                         try:
                             file_size = ftp.size(file_path)

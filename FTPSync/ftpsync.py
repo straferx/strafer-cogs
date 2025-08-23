@@ -9,7 +9,7 @@ import zipfile
 from typing import List, Optional
 import os
 
-class FTPSync(commands.Cog):
+class ftpsync(commands.Cog):
     """FTP Sync cog for backing up files from FTP server to Discord channels."""
 
     def __init__(self, bot: Red):
@@ -21,7 +21,6 @@ class FTPSync(commands.Cog):
             ftp_username="",
             ftp_password="",
             backup_paths=[],
-            use_zip_file=False,
             split_large_files=False
         )
 
@@ -235,79 +234,106 @@ class FTPSync(commands.Cog):
                 
                 # Send files to Discord
                 if files_to_send:
-                    # Check file sizes (Discord limit is 25MB)
-                    max_size = 25 * 1024 * 1024  # 25MB in bytes
+                    # Always create a ZIP archive with all files
+                    zip_data = io.BytesIO()
+                    with zipfile.ZipFile(zip_data, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zip_file:
+                        for filename, file_data in files_to_send:
+                            zip_file.writestr(filename, file_data.getvalue())
                     
-                    for filename, file_data in files_to_send:
-                        file_size = len(file_data.getvalue())
+                    zip_data.seek(0)
+                    zip_size = len(zip_data.getvalue())
+                    zip_size_mb = zip_size / (1024 * 1024)
+                    
+                    # Check if ZIP is too large
+                    max_size = 25 * 1024 * 1024  # 25MB limit
+                    
+                    if zip_size <= max_size:
+                        # Send ZIP file
+                        zip_file = discord.File(zip_data, filename="backup.zip")
+                        zip_embed = discord.Embed(
+                            title="📦 Backup Complete",
+                            description=f"Successfully backed up {len(files_to_send)} files as ZIP archive.\n"
+                                       f"ZIP size: {zip_size_mb:.1f}MB",
+                            color=discord.Color.green()
+                        )
                         
-                        if file_size > max_size:
-                            size_mb = file_size / (1024 * 1024)
+                        # Add file list to embed
+                        file_list = "\n".join([f"• `{filename}` ({(len(file_data.getvalue()) / 1024 / 1024):.1f}MB)" 
+                                              for filename, file_data in files_to_send])
+                        zip_embed.add_field(name="📁 Files in Archive", value=file_list, inline=False)
+                        
+                        await ctx.send(embed=zip_embed, file=zip_file)
+                    else:
+                        # ZIP is too large, try individual compression or splitting
+                        await ctx.send(f"⚠️ ZIP archive is too large ({zip_size_mb:.1f}MB). Trying individual file compression...")
+                        
+                        for filename, file_data in files_to_send:
+                            file_size = len(file_data.getvalue())
+                            file_size_mb = file_size / (1024 * 1024)
                             
-                            # Try to compress the file
-                            try:
-                                compressed_data = io.BytesIO()
-                                with zipfile.ZipFile(compressed_data, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zip_file:
-                                    zip_file.writestr(filename, file_data.getvalue())
-                                
-                                compressed_data.seek(0)
-                                compressed_size = len(compressed_data.getvalue())
-                                compressed_mb = compressed_size / (1024 * 1024)
-                                
-                                if compressed_size <= max_size:
-                                    # Send compressed file
-                                    discord_file = discord.File(compressed_data, filename=f"{filename}.zip")
+                            if file_size > max_size:
+                                # Try to compress individual file
+                                try:
+                                    compressed_data = io.BytesIO()
+                                    with zipfile.ZipFile(compressed_data, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zip_file:
+                                        zip_file.writestr(filename, file_data.getvalue())
+                                    
+                                    compressed_data.seek(0)
+                                    compressed_size = len(compressed_data.getvalue())
+                                    compressed_mb = compressed_size / (1024 * 1024)
+                                    
+                                    if compressed_size <= max_size:
+                                        # Send compressed file
+                                        discord_file = discord.File(compressed_data, filename=f"{filename}.zip")
+                                        file_embed = discord.Embed(
+                                            title="📦 Compressed File",
+                                            description=f"File: `{filename}` compressed to `{filename}.zip`\n"
+                                                       f"Original: {file_size_mb:.1f}MB → Compressed: {compressed_mb:.1f}MB",
+                                            color=discord.Color.orange()
+                                        )
+                                        await ctx.send(embed=file_embed, file=discord_file)
+                                    else:
+                                        # File is still too large, try splitting
+                                        if guild_config.get("split_large_files", False):
+                                            # Split the file into chunks
+                                            chunk_size = 20 * 1024 * 1024  # 20MB chunks
+                                            file_bytes = file_data.getvalue()
+                                            total_chunks = (len(file_bytes) + chunk_size - 1) // chunk_size
+                                            
+                                            for i in range(total_chunks):
+                                                start = i * chunk_size
+                                                end = min(start + chunk_size, len(file_bytes))
+                                                chunk_data = file_bytes[start:end]
+                                                
+                                                chunk_filename = f"{filename}.part{i+1:03d}of{total_chunks:03d}"
+                                                chunk_io = io.BytesIO(chunk_data)
+                                                
+                                                discord_file = discord.File(chunk_io, filename=chunk_filename)
+                                                chunk_embed = discord.Embed(
+                                                    title="📄 File Chunk",
+                                                    description=f"File: `{filename}` - Part {i+1} of {total_chunks}\n"
+                                                               f"Size: {(len(chunk_data) / 1024 / 1024):.1f}MB",
+                                                    color=discord.Color.purple()
+                                                )
+                                                await ctx.send(embed=chunk_embed, file=discord_file)
+                                        else:
+                                            await ctx.send(f"⚠️ File `{filename}` is too large ({file_size_mb:.1f}MB) even after compression ({compressed_mb:.1f}MB).\n"
+                                                          f"Enable file splitting with `splitlargefiles true` to split large files into chunks.")
+                                            
+                                except Exception as compress_error:
+                                    await ctx.send(f"⚠️ File `{filename}` is too large ({file_size_mb:.1f}MB) and compression failed: {str(compress_error)}")
+                            else:
+                                # File is small enough, send normally
+                                try:
+                                    discord_file = discord.File(file_data, filename=filename)
                                     file_embed = discord.Embed(
-                                        title="📦 Compressed File Backup",
-                                        description=f"File: `{filename}` compressed to `{filename}.zip`\n"
-                                                   f"Original: {size_mb:.1f}MB → Compressed: {compressed_mb:.1f}MB",
-                                        color=discord.Color.orange()
+                                        title="📄 File Backup",
+                                        description=f"File: `{filename}` ({file_size_mb:.1f}MB)",
+                                        color=discord.Color.blue()
                                     )
                                     await ctx.send(embed=file_embed, file=discord_file)
-                                else:
-                                    # File is still too large even compressed, try splitting
-                                    if guild_config.get("split_large_files", False):
-                                        # Split the file into chunks
-                                        chunk_size = 20 * 1024 * 1024  # 20MB chunks
-                                        file_bytes = file_data.getvalue()
-                                        total_chunks = (len(file_bytes) + chunk_size - 1) // chunk_size
-                                        
-                                        for i in range(total_chunks):
-                                            start = i * chunk_size
-                                            end = min(start + chunk_size, len(file_bytes))
-                                            chunk_data = file_bytes[start:end]
-                                            
-                                            chunk_filename = f"{filename}.part{i+1:03d}of{total_chunks:03d}"
-                                            chunk_io = io.BytesIO(chunk_data)
-                                            
-                                            discord_file = discord.File(chunk_io, filename=chunk_filename)
-                                            chunk_embed = discord.Embed(
-                                                title="📄 File Chunk",
-                                                description=f"File: `{filename}` - Part {i+1} of {total_chunks}\n"
-                                                           f"Size: {(len(chunk_data) / 1024 / 1024):.1f}MB",
-                                                color=discord.Color.purple()
-                                            )
-                                            await ctx.send(embed=chunk_embed, file=discord_file)
-                                    else:
-                                        await ctx.send(f"⚠️ File `{filename}` is too large ({size_mb:.1f}MB) even after compression ({compressed_mb:.1f}MB).\n"
-                                                      f"Enable file splitting with `splitlargefiles true` to split large files into chunks.")
-                                        continue
-                                    
-                            except Exception as compress_error:
-                                await ctx.send(f"⚠️ File `{filename}` is too large ({size_mb:.1f}MB) and compression failed: {str(compress_error)}")
-                                continue
-                        else:
-                            # File is within size limit, send normally
-                            try:
-                                discord_file = discord.File(file_data, filename=filename)
-                                file_embed = discord.Embed(
-                                    title="📄 File Backup",
-                                    description=f"File: `{filename}` ({(file_size / 1024 / 1024):.1f}MB)",
-                                    color=discord.Color.blue()
-                                )
-                                await ctx.send(embed=file_embed, file=discord_file)
-                            except Exception as send_error:
-                                await ctx.send(f"❌ Failed to send `{filename}`: {str(send_error)}")
+                                except Exception as send_error:
+                                    await ctx.send(f"❌ Failed to send `{filename}`: {str(send_error)}")
                     
                     # Final status update
                     final_embed = discord.Embed(
@@ -408,18 +434,7 @@ class FTPSync(commands.Cog):
             )
             await ctx.send(embed=embed)
 
-    @commands.command(name="usezipfile")
-    @commands.has_permissions(administrator=True)
-    async def use_zip_file(self, ctx: commands.Context, use_zip: bool):
-        """Set whether to use ZIP files when sending multiple files."""
-        await self.config.guild(ctx.guild).use_zip_file.set(use_zip)
-        status = "enabled" if use_zip else "disabled"
-        embed = discord.Embed(
-            title="✅ ZIP Mode Updated",
-            description=f"ZIP file mode has been {status}.",
-            color=discord.Color.green()
-        )
-        await ctx.send(embed=embed)
+
 
     @commands.command(name="ftpstatus")
     @commands.has_permissions(administrator=True)
@@ -447,8 +462,7 @@ class FTPSync(commands.Cog):
         embed.add_field(name="📁 Backup Paths", value=paths_text, inline=False)
         
         # ZIP setting
-        zip_status = "✅ Enabled" if config['use_zip_file'] else "❌ Disabled"
-        embed.add_field(name="📦 ZIP Mode", value=zip_status, inline=False)
+        embed.add_field(name="📦 ZIP Mode", value="Always Enabled", inline=False)
         
         await ctx.send(embed=embed)
 

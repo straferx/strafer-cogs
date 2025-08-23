@@ -220,8 +220,11 @@ class Ftpsync(commands.Cog):
                         
                         await ctx.send(f"📊 Processing: {filename} ({file_size_mb:.1f}MB)")
                         
-                        if file_size > max_size:
-                            # Try to compress individual file
+                        # Use a more conservative size limit to avoid Discord issues
+                        safe_size = 20 * 1024 * 1024  # 20MB safe limit
+                        
+                        if file_size > safe_size:
+                            # File is large, try compression first
                             try:
                                 compressed_data = io.BytesIO()
                                 with zipfile.ZipFile(compressed_data, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zip_file:
@@ -233,16 +236,16 @@ class Ftpsync(commands.Cog):
                                 
                                 await ctx.send(f"📊 Compressed size: {compressed_mb:.1f}MB")
                                 
-                                if compressed_size <= max_size:
+                                if compressed_size <= safe_size:
                                     # Send compressed file
                                     discord_file = discord.File(compressed_data, filename=f"{filename}.zip")
                                     await ctx.send(f"📦 Compressed: `{filename}` → `{filename}.zip` ({file_size_mb:.1f}MB → {compressed_mb:.1f}MB)", file=discord_file)
                                 else:
-                                    # File is still too large, try splitting (enabled by default)
+                                    # File is still too large, split into chunks
                                     await ctx.send(f"⚠️ File `{filename}` is still too large after compression ({compressed_mb:.1f}MB). Splitting into chunks...")
                                     
                                     # Split the file into chunks
-                                    chunk_size = 20 * 1024 * 1024  # 20MB chunks
+                                    chunk_size = 15 * 1024 * 1024  # 15MB chunks (safer)
                                     file_bytes = file_data.getvalue()
                                     total_chunks = (len(file_bytes) + chunk_size - 1) // chunk_size
                                     
@@ -259,6 +262,22 @@ class Ftpsync(commands.Cog):
                                         
                             except Exception as compress_error:
                                 await ctx.send(f"⚠️ File `{filename}` is too large ({file_size_mb:.1f}MB) and compression failed: {str(compress_error)}")
+                                # Fall back to splitting without compression
+                                await ctx.send(f"🔄 Falling back to direct splitting...")
+                                chunk_size = 15 * 1024 * 1024  # 15MB chunks
+                                file_bytes = file_data.getvalue()
+                                total_chunks = (len(file_bytes) + chunk_size - 1) // chunk_size
+                                
+                                for i in range(total_chunks):
+                                    start = i * chunk_size
+                                    end = min(start + chunk_size, len(file_bytes))
+                                    chunk_data = file_bytes[start:end]
+                                    
+                                    chunk_filename = f"{filename}.part{i+1:03d}of{total_chunks:03d}"
+                                    chunk_io = io.BytesIO(chunk_data)
+                                    
+                                    discord_file = discord.File(chunk_io, filename=chunk_filename)
+                                    await ctx.send(f"📄 Chunk: `{filename}` - Part {i+1} of {total_chunks} ({(len(chunk_data) / 1024 / 1024):.1f}MB)", file=discord_file)
                         else:
                             # File is small enough, send normally
                             try:
@@ -266,6 +285,24 @@ class Ftpsync(commands.Cog):
                                 await ctx.send(f"📄 File: `{filename}` ({file_size_mb:.1f}MB)", file=discord_file)
                             except Exception as send_error:
                                 await ctx.send(f"❌ Failed to send `{filename}`: {str(send_error)}")
+                                # If sending fails, try splitting even for smaller files
+                                if "413" in str(send_error) or "Payload Too Large" in str(send_error):
+                                    await ctx.send(f"🔄 File `{filename}` failed to send, trying to split...")
+                                    # Split the file into smaller chunks
+                                    chunk_size = 15 * 1024 * 1024  # 15MB chunks (safer)
+                                    file_bytes = file_data.getvalue()
+                                    total_chunks = (len(file_bytes) + chunk_size - 1) // chunk_size
+                                    
+                                    for i in range(total_chunks):
+                                        start = i * chunk_size
+                                        end = min(start + chunk_size, len(file_bytes))
+                                        chunk_data = file_bytes[start:end]
+                                        
+                                        chunk_filename = f"{filename}.part{i+1:03d}of{total_chunks:03d}"
+                                        chunk_io = io.BytesIO(chunk_data)
+                                        
+                                        discord_file = discord.File(chunk_io, filename=chunk_filename)
+                                        await ctx.send(f"📄 Chunk: `{filename}` - Part {i+1} of {total_chunks} ({(len(chunk_data) / 1024 / 1024):.1f}MB)", file=discord_file)
                 
                 # Final status update
                 await status_msg.edit(content="✅ Backup completed successfully!")

@@ -130,9 +130,11 @@ class Ftpsync(commands.Cog):
                             file_size = ftp.size(file_path)
                             if file_size == -1:
                                 failed_files.append(f"`{file_path}` (file not found)")
+                                await ctx.send(f"❌ File not found: `{file_path}`")
                                 continue
-                        except:
+                        except Exception as size_error:
                             failed_files.append(f"`{file_path}` (file not found)")
+                            await ctx.send(f"❌ File not found: `{file_path}` - {str(size_error)}")
                             continue
                         
                         # Download the file
@@ -164,7 +166,9 @@ class Ftpsync(commands.Cog):
                     error_msg = str(download_error)
                     if len(error_msg) > 500:
                         error_msg = error_msg[:500] + "..."
-                    raise Exception(f"Download failed: {error_msg}")
+                    failed_files.append(f"`{file_path}` (Download failed: {error_msg})")
+                    await ctx.send(f"❌ Failed to download `{file_path}`: {error_msg}")
+                    continue  # Continue to next file instead of raising
                 
                 # Get filename from path
                 filename = os.path.basename(file_path)
@@ -328,33 +332,34 @@ class Ftpsync(commands.Cog):
     @commands.command(name="ftpstatus")
     @commands.has_permissions(administrator=True)
     async def ftp_status(self, ctx: commands.Context):
-        """Show current FTP configuration status."""
+        """Show current FTP configuration and backup paths."""
         config = await self.config.guild(ctx.guild).all()
         
-        embed = discord.Embed(title="📊 FTP Configuration Status", color=discord.Color.blue())
+        embed = discord.Embed(title="FTP Configuration Status", color=discord.Color.blue())
         
-        # FTP connection info
-        ftp_info = f"**Host:** `{config['ftp_host'] or 'Not set'}`\n"
-        ftp_info += f"**Port:** `{config['ftp_port']}`\n"
-        ftp_info += f"**Username:** `{config['ftp_username'] or 'Not set'}`\n"
-        ftp_info += f"**Password:** `{'*' * len(config['ftp_password']) if config['ftp_password'] else 'Not set'}`"
+        # FTP Settings
+        ftp_host = config["ftp_host"] or "Not set"
+        ftp_port = config["ftp_port"] or "Not set"
+        ftp_username = config["ftp_username"] or "Not set"
+        ftp_password = "***" if config["ftp_password"] else "Not set"
         
-        embed.add_field(name="🔗 FTP Connection", value=ftp_info, inline=False)
+        embed.add_field(name="FTP Host", value=ftp_host, inline=True)
+        embed.add_field(name="FTP Port", value=ftp_port, inline=True)
+        embed.add_field(name="FTP Username", value=ftp_username, inline=True)
+        embed.add_field(name="FTP Password", value=ftp_password, inline=True)
         
-        # Backup paths
-        paths = config['backup_paths']
-        if paths:
-            paths_text = "\n".join([f"• `{path}`" for path in paths])
-            # Truncate if too long
-            if len(paths_text) > 1000:
-                paths_text = paths_text[:1000] + "..."
+        # Backup Paths
+        backup_paths = config["backup_paths"]
+        if backup_paths:
+            paths_text = "\n".join([f"• `{path}`" for path in backup_paths])
         else:
-            paths_text = "No paths configured"
+            paths_text = "No backup paths configured"
         
-        embed.add_field(name="📁 Backup Paths", value=paths_text, inline=False)
+        embed.add_field(name="Backup Paths", value=paths_text, inline=False)
         
-        # ZIP setting
-        embed.add_field(name="📦 ZIP Mode", value="Always Enabled", inline=False)
+        # Split Large Files
+        split_files = "Enabled" if config.get("split_large_files", False) else "Disabled"
+        embed.add_field(name="Split Large Files", value=split_files, inline=True)
         
         await ctx.send(embed=embed)
 

@@ -9,7 +9,7 @@ import zipfile
 from typing import List, Optional
 import os
 
-class ftpsync(commands.Cog):
+class FtpSync(commands.Cog):
     """FTP Sync cog for backing up files from FTP server to Discord channels."""
 
     def __init__(self, bot: Red):

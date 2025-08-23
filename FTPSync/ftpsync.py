@@ -239,21 +239,50 @@ class FTPSync(commands.Cog):
                     
                     for filename, file_data in files_to_send:
                         file_size = len(file_data.getvalue())
+                        
                         if file_size > max_size:
                             size_mb = file_size / (1024 * 1024)
-                            await ctx.send(f"⚠️ File `{filename}` is too large ({size_mb:.1f}MB). Discord limit is 25MB.")
-                            continue
-                        
-                        try:
-                            discord_file = discord.File(file_data, filename=filename)
-                            file_embed = discord.Embed(
-                                title="📄 File Backup",
-                                description=f"File: `{filename}` ({(file_size / 1024 / 1024):.1f}MB)",
-                                color=discord.Color.blue()
-                            )
-                            await ctx.send(embed=file_embed, file=discord_file)
-                        except Exception as send_error:
-                            await ctx.send(f"❌ Failed to send `{filename}`: {str(send_error)}")
+                            
+                            # Try to compress the file
+                            try:
+                                compressed_data = io.BytesIO()
+                                with zipfile.ZipFile(compressed_data, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zip_file:
+                                    zip_file.writestr(filename, file_data.getvalue())
+                                
+                                compressed_data.seek(0)
+                                compressed_size = len(compressed_data.getvalue())
+                                compressed_mb = compressed_size / (1024 * 1024)
+                                
+                                if compressed_size <= max_size:
+                                    # Send compressed file
+                                    discord_file = discord.File(compressed_data, filename=f"{filename}.zip")
+                                    file_embed = discord.Embed(
+                                        title="📦 Compressed File Backup",
+                                        description=f"File: `{filename}` compressed to `{filename}.zip`\n"
+                                                   f"Original: {size_mb:.1f}MB → Compressed: {compressed_mb:.1f}MB",
+                                        color=discord.Color.orange()
+                                    )
+                                    await ctx.send(embed=file_embed, file=discord_file)
+                                else:
+                                    # File is still too large even compressed
+                                    await ctx.send(f"⚠️ File `{filename}` is too large ({size_mb:.1f}MB) even after compression ({compressed_mb:.1f}MB). Discord limit is 25MB.")
+                                    continue
+                                    
+                            except Exception as compress_error:
+                                await ctx.send(f"⚠️ File `{filename}` is too large ({size_mb:.1f}MB) and compression failed: {str(compress_error)}")
+                                continue
+                        else:
+                            # File is within size limit, send normally
+                            try:
+                                discord_file = discord.File(file_data, filename=filename)
+                                file_embed = discord.Embed(
+                                    title="📄 File Backup",
+                                    description=f"File: `{filename}` ({(file_size / 1024 / 1024):.1f}MB)",
+                                    color=discord.Color.blue()
+                                )
+                                await ctx.send(embed=file_embed, file=discord_file)
+                            except Exception as send_error:
+                                await ctx.send(f"❌ Failed to send `{filename}`: {str(send_error)}")
                     
                     # Final status update
                     final_embed = discord.Embed(

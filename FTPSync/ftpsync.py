@@ -21,7 +21,8 @@ class FTPSync(commands.Cog):
             ftp_username="",
             ftp_password="",
             backup_paths=[],
-            use_zip_file=False
+            use_zip_file=False,
+            split_large_files=False
         )
 
     @commands.command(name="setftphost")
@@ -264,9 +265,33 @@ class FTPSync(commands.Cog):
                                     )
                                     await ctx.send(embed=file_embed, file=discord_file)
                                 else:
-                                    # File is still too large even compressed
-                                    await ctx.send(f"⚠️ File `{filename}` is too large ({size_mb:.1f}MB) even after compression ({compressed_mb:.1f}MB). Discord limit is 25MB.")
-                                    continue
+                                    # File is still too large even compressed, try splitting
+                                    if guild_config.get("split_large_files", False):
+                                        # Split the file into chunks
+                                        chunk_size = 20 * 1024 * 1024  # 20MB chunks
+                                        file_bytes = file_data.getvalue()
+                                        total_chunks = (len(file_bytes) + chunk_size - 1) // chunk_size
+                                        
+                                        for i in range(total_chunks):
+                                            start = i * chunk_size
+                                            end = min(start + chunk_size, len(file_bytes))
+                                            chunk_data = file_bytes[start:end]
+                                            
+                                            chunk_filename = f"{filename}.part{i+1:03d}of{total_chunks:03d}"
+                                            chunk_io = io.BytesIO(chunk_data)
+                                            
+                                            discord_file = discord.File(chunk_io, filename=chunk_filename)
+                                            chunk_embed = discord.Embed(
+                                                title="📄 File Chunk",
+                                                description=f"File: `{filename}` - Part {i+1} of {total_chunks}\n"
+                                                           f"Size: {(len(chunk_data) / 1024 / 1024):.1f}MB",
+                                                color=discord.Color.purple()
+                                            )
+                                            await ctx.send(embed=chunk_embed, file=discord_file)
+                                    else:
+                                        await ctx.send(f"⚠️ File `{filename}` is too large ({size_mb:.1f}MB) even after compression ({compressed_mb:.1f}MB).\n"
+                                                      f"Enable file splitting with `splitlargefiles true` to split large files into chunks.")
+                                        continue
                                     
                             except Exception as compress_error:
                                 await ctx.send(f"⚠️ File `{filename}` is too large ({size_mb:.1f}MB) and compression failed: {str(compress_error)}")
@@ -425,6 +450,19 @@ class FTPSync(commands.Cog):
         zip_status = "✅ Enabled" if config['use_zip_file'] else "❌ Disabled"
         embed.add_field(name="📦 ZIP Mode", value=zip_status, inline=False)
         
+        await ctx.send(embed=embed)
+
+    @commands.command(name="splitlargefiles")
+    @commands.has_permissions(administrator=True)
+    async def split_large_files(self, ctx: commands.Context, enabled: bool):
+        """Enable or disable automatic splitting of large files into chunks."""
+        await self.config.guild(ctx.guild).split_large_files.set(enabled)
+        status = "enabled" if enabled else "disabled"
+        embed = discord.Embed(
+            title="✅ Large File Splitting Updated",
+            description=f"Large file splitting has been {status}.",
+            color=discord.Color.green()
+        )
         await ctx.send(embed=embed)
 
     @commands.command(name="testftp")

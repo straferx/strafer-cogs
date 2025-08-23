@@ -1,4 +1,4 @@
-# ftpsync Cog
+# FTPSync Cog
 
 A Red-DiscordBot cog for backing up files from an FTP server to Discord channels.
 

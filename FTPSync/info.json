@@ -1,9 +1,9 @@
 {
-    "name": "FtpSync",
+    "name": "FTPSync",
     "short": "FTP file backup to Discord",
     "description": "A cog for backing up files from FTP servers to Discord channels with automatic ZIP compression.",
     "end_user_data_statement": "This cog stores FTP configuration data including host, port, username, password, and backup file paths for each guild.",
-    "install_msg": "Thank you for installing ftpsync! Use `setftphost`, `setftpport`, `setftpusername`, and `setftppassword` to configure your FTP connection and `addbackuppath` to add files to backup.",
+    "install_msg": "Thank you for installing FTPSync! Use `setftphost`, `setftpport`, `setftpusername`, and `setftppassword` to configure your FTP connection and `addbackuppath` to add files to backup.",
     "author": ["strafer"],
     "requirements": ["aioftp"],
     "tags": ["ftp", "backup", "files", "utility"],

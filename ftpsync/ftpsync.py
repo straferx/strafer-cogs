@@ -232,19 +232,7 @@ class Ftpsync(commands.Cog):
                     if zip_size <= max_size:
                         # Send ZIP file
                         zip_file = discord.File(zip_data, filename="backup.zip")
-                        zip_embed = discord.Embed(
-                            title="📦 Backup Complete",
-                            description=f"Successfully backed up {len(files_to_send)} files as ZIP archive.\n"
-                                       f"ZIP size: {zip_size_mb:.1f}MB",
-                            color=discord.Color.green()
-                        )
-                        
-                        # Add file list to embed
-                        file_list = "\n".join([f"• `{filename}` ({(len(file_data.getvalue()) / 1024 / 1024):.1f}MB)" 
-                                              for filename, file_data in files_to_send])
-                        zip_embed.add_field(name="📁 Files in Archive", value=file_list, inline=False)
-                        
-                        await ctx.send(embed=zip_embed, file=zip_file)
+                        await ctx.send(f"📦 Backup complete! {len(files_to_send)} files in backup.zip ({zip_size_mb:.1f}MB)", file=zip_file)
                     else:
                         # ZIP is too large, try individual compression or splitting
                         await ctx.send(f"⚠️ ZIP archive is too large ({zip_size_mb:.1f}MB). Trying individual file compression...")
@@ -267,13 +255,7 @@ class Ftpsync(commands.Cog):
                                     if compressed_size <= max_size:
                                         # Send compressed file
                                         discord_file = discord.File(compressed_data, filename=f"{filename}.zip")
-                                        file_embed = discord.Embed(
-                                            title="📦 Compressed File",
-                                            description=f"File: `{filename}` compressed to `{filename}.zip`\n"
-                                                       f"Original: {file_size_mb:.1f}MB → Compressed: {compressed_mb:.1f}MB",
-                                            color=discord.Color.orange()
-                                        )
-                                        await ctx.send(embed=file_embed, file=discord_file)
+                                        await ctx.send(f"📦 Compressed: `{filename}` → `{filename}.zip` ({file_size_mb:.1f}MB → {compressed_mb:.1f}MB)", file=discord_file)
                                     else:
                                         # File is still too large, try splitting
                                         if guild_config.get("split_large_files", False):
@@ -333,29 +315,13 @@ class Ftpsync(commands.Cog):
                             value=failed_text,
                             inline=False
                         )
-                    await status_msg.edit(embed=final_embed)
+                    await status_msg.edit(content="✅ Backup completed successfully!")
                 else:
                     # No files downloaded
-                    final_embed = discord.Embed(
-                        title="❌ Backup Failed",
-                        description="No files were downloaded successfully.",
-                        color=discord.Color.red()
-                    )
-                    if failed_files:
-                        final_embed.add_field(
-                            name="Failed Files",
-                            value="\n".join(failed_files),
-                            inline=False
-                        )
-                    await status_msg.edit(embed=final_embed)
+                    await status_msg.edit(content="❌ No files were downloaded successfully.")
                     
         except Exception as e:
-            error_embed = discord.Embed(
-                title="❌ Connection Failed",
-                description=f"Failed to connect to FTP server: {str(e)}",
-                color=discord.Color.red()
-            )
-            await status_msg.edit(embed=error_embed)
+            await status_msg.edit(content=f"❌ Failed to connect to FTP server: {str(e)}")
 
     @commands.command(name="addbackuppath")
     @commands.has_permissions(administrator=True)

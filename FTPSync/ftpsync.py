@@ -166,8 +166,10 @@ class FTPSync(commands.Cog):
                             import tempfile
                             import os
                             
-                            # Create a guaranteed unique temporary file
-                            temp_path = tempfile.mktemp(suffix='.tmp')
+                            # Create a temporary file in current directory
+                            import uuid
+                            temp_filename = f"ftp_temp_{uuid.uuid4().hex}.tmp"
+                            temp_path = os.path.join(os.getcwd(), temp_filename)
                             
                             try:
                                 # Download the file

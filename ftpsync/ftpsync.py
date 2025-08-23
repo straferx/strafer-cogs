@@ -131,20 +131,13 @@ class Ftpsync(commands.Cog):
                 # Download each file
                 for file_path in guild_config["backup_paths"]:
                     try:
-                        print(f"Attempting to download: {file_path}")
-                        
                         # Get file info
                         file_info = await client.stat(file_path)
-                        print(f"File info: {file_info}")
                         
                         # Check if it's a file (not a directory)
                         if file_info.get('type') == 'dir':
                             failed_files.append(f"`{file_path}` (not a file)")
                             continue
-                        
-                        # Log file info for debugging
-                        file_size = file_info.get('size', 'unknown')
-                        print(f"Downloading {file_path} (size: {file_size})")
                         
                         # Download file to temporary file
                         import tempfile
@@ -193,9 +186,6 @@ class Ftpsync(commands.Cog):
                                         pass  # Ignore cleanup errors
                                     
                         except Exception as download_error:
-                            import traceback
-                            error_details = traceback.format_exc()
-                            print(f"Download error for {file_path}: {error_details}")
                             # Truncate error message to avoid Discord embed limits
                             error_msg = str(download_error)
                             if len(error_msg) > 500:
@@ -273,13 +263,7 @@ class Ftpsync(commands.Cog):
                                                 chunk_io = io.BytesIO(chunk_data)
                                                 
                                                 discord_file = discord.File(chunk_io, filename=chunk_filename)
-                                                chunk_embed = discord.Embed(
-                                                    title="📄 File Chunk",
-                                                    description=f"File: `{filename}` - Part {i+1} of {total_chunks}\n"
-                                                               f"Size: {(len(chunk_data) / 1024 / 1024):.1f}MB",
-                                                    color=discord.Color.purple()
-                                                )
-                                                await ctx.send(embed=chunk_embed, file=discord_file)
+                                                await ctx.send(f"📄 Chunk: `{filename}` - Part {i+1} of {total_chunks} ({(len(chunk_data) / 1024 / 1024):.1f}MB)", file=discord_file)
                                         else:
                                             await ctx.send(f"⚠️ File `{filename}` is too large ({file_size_mb:.1f}MB) even after compression ({compressed_mb:.1f}MB).\n"
                                                           f"Enable file splitting with `splitlargefiles true` to split large files into chunks.")
@@ -290,12 +274,7 @@ class Ftpsync(commands.Cog):
                                 # File is small enough, send normally
                                 try:
                                     discord_file = discord.File(file_data, filename=filename)
-                                    file_embed = discord.Embed(
-                                        title="📄 File Backup",
-                                        description=f"File: `{filename}` ({file_size_mb:.1f}MB)",
-                                        color=discord.Color.blue()
-                                    )
-                                    await ctx.send(embed=file_embed, file=discord_file)
+                                    await ctx.send(f"📄 File: `{filename}` ({file_size_mb:.1f}MB)", file=discord_file)
                                 except Exception as send_error:
                                     await ctx.send(f"❌ Failed to send `{filename}`: {str(send_error)}")
                     

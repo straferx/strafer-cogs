@@ -89,26 +89,12 @@ class Ftpsync(commands.Cog):
         
         # Check if FTP is configured
         if not guild_config["ftp_host"] or not guild_config["ftp_username"]:
-            embed = discord.Embed(
-                title="❌ FTP Not Configured",
-                description="FTP configuration is not complete. Please set up the following:\n"
-                           "• `setftphost <host>`\n"
-                           "• `setftpport <port>`\n"
-                           "• `setftpusername <username>`\n"
-                           "• `setftppassword <password>`",
-                color=discord.Color.red()
-            )
-            await ctx.send(embed=embed)
+            await ctx.send("❌ FTP not configured. Use `setftphost`, `setftpport`, `setftpusername`, and `setftppassword` to configure.")
             return
         
         # Check if backup paths are configured
         if not guild_config["backup_paths"]:
-            embed = discord.Embed(
-                title="❌ No Backup Paths",
-                description="No backup paths configured. Use `addbackuppath <file_path>` to add files to backup.",
-                color=discord.Color.red()
-            )
-            await ctx.send(embed=embed)
+            await ctx.send("❌ No backup paths configured. Use `addbackuppath <file_path>` to add files to backup.")
             return
 
         # Send initial message
@@ -279,21 +265,6 @@ class Ftpsync(commands.Cog):
                                     await ctx.send(f"❌ Failed to send `{filename}`: {str(send_error)}")
                     
                     # Final status update
-                    final_embed = discord.Embed(
-                        title="✅ Backup Completed",
-                        description=f"Successfully backed up {len(files_to_send)} files.",
-                        color=discord.Color.green()
-                    )
-                    if failed_files:
-                        # Truncate failed files list if too long
-                        failed_text = "\n".join(failed_files)
-                        if len(failed_text) > 1000:
-                            failed_text = failed_text[:1000] + "..."
-                        final_embed.add_field(
-                            name="Failed Files",
-                            value=failed_text,
-                            inline=False
-                        )
                     await status_msg.edit(content="✅ Backup completed successfully!")
                 else:
                     # No files downloaded
@@ -387,6 +358,9 @@ class Ftpsync(commands.Cog):
         paths = config['backup_paths']
         if paths:
             paths_text = "\n".join([f"• `{path}`" for path in paths])
+            # Truncate if too long
+            if len(paths_text) > 1000:
+                paths_text = paths_text[:1000] + "..."
         else:
             paths_text = "No paths configured"
         

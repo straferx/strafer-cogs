@@ -271,7 +271,10 @@ class Ftpsync(commands.Cog):
                     await status_msg.edit(content="❌ No files were downloaded successfully.")
                     
         except Exception as e:
-            await status_msg.edit(content=f"❌ Failed to connect to FTP server: {str(e)}")
+            error_msg = str(e)
+            if len(error_msg) > 100:
+                error_msg = error_msg[:100] + "..."
+            await status_msg.edit(content=f"❌ FTP error: {error_msg}")
 
     @commands.command(name="addbackuppath")
     @commands.has_permissions(administrator=True)

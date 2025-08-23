@@ -162,20 +162,37 @@ class FTPSync(commands.Cog):
                             temp_path = temp_file.name
                         
                         try:
-                            # Use a simpler approach with BytesIO and download_stream
-                            file_data = io.BytesIO()
+                            # Use a more basic approach with temporary file
+                            import tempfile
+                            import os
                             
-                            # Try to download using download_stream with a callback
-                            def write_chunk(chunk):
-                                file_data.write(chunk)
+                            # Create a temporary file with a proper extension
+                            temp_dir = tempfile.gettempdir()
+                            filename = os.path.basename(file_path)
+                            temp_path = os.path.join(temp_dir, f"ftp_download_{filename}")
                             
-                            await client.download_stream(file_path, write_chunk)
-                            file_data.seek(0)
-                            
-                            # Check if we got any data
-                            if file_data.getvalue() == b'':
-                                raise Exception("Downloaded file is empty")
+                            try:
+                                # Download the file
+                                await client.download(file_path, temp_path)
                                 
+                                # Check if file was downloaded
+                                if not os.path.exists(temp_path) or os.path.getsize(temp_path) == 0:
+                                    raise Exception("File download failed or file is empty")
+                                
+                                # Read into BytesIO
+                                file_data = io.BytesIO()
+                                with open(temp_path, 'rb') as f:
+                                    file_data.write(f.read())
+                                file_data.seek(0)
+                                
+                            finally:
+                                # Clean up temp file
+                                if os.path.exists(temp_path):
+                                    try:
+                                        os.unlink(temp_path)
+                                    except:
+                                        pass  # Ignore cleanup errors
+                                    
                         except Exception as download_error:
                             import traceback
                             error_details = traceback.format_exc()

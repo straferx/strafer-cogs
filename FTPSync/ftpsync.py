@@ -218,7 +218,7 @@ class FTPConfigModal(discord.ui.Modal, title="FTP Configuration"):
         placeholder="password",
         required=True,
         max_length=100,
-        style=discord.TextStyle.password
+        style=discord.TextStyle.short
     )
 
     async def on_submit(self, interaction: discord.Interaction):

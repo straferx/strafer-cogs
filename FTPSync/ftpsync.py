@@ -146,6 +146,10 @@ class FTPSync(commands.Cog):
                             failed_files.append(f"`{file_path}` (not a file)")
                             continue
                         
+                        # Log file info for debugging
+                        file_size = file_info.get('size', 'unknown')
+                        print(f"Downloading {file_path} (size: {file_size})")
+                        
                         # Download file to temporary file
                         import tempfile
                         import os
@@ -154,17 +158,17 @@ class FTPSync(commands.Cog):
                             temp_path = temp_file.name
                         
                         try:
-                            await client.download(file_path, temp_path)
-                            
-                            # Read the downloaded file into BytesIO
+                            # Try using retrieve method instead
                             file_data = io.BytesIO()
-                            with open(temp_path, 'rb') as f:
-                                file_data.write(f.read())
+                            await client.retrieve(file_path, file_data.write)
                             file_data.seek(0)
-                        finally:
-                            # Clean up temporary file
-                            if os.path.exists(temp_path):
-                                os.unlink(temp_path)
+                            
+                            # Check if we got any data
+                            if file_data.getvalue() == b'':
+                                raise Exception("Downloaded file is empty")
+                                
+                        except Exception as download_error:
+                            raise Exception(f"Download failed: {str(download_error)}")
                         
                         # Get filename from path
                         filename = os.path.basename(file_path)

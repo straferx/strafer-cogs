@@ -380,7 +380,8 @@ class FTPSync(commands.Cog):
                 # Test connection by listing root directory
                 files = []
                 async for file_info in client.list():
-                    files.append(file_info.name)
+                    # file_info is a tuple, first element is the filename
+                    files.append(file_info[0])
                 
                 success_embed = discord.Embed(
                     title="✅ FTP Connection Successful",

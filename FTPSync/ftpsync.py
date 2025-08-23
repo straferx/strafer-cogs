@@ -139,8 +139,12 @@ class FTPSync(commands.Cog):
                 # Download each file
                 for file_path in guild_config["backup_paths"]:
                     try:
+                        print(f"Attempting to download: {file_path}")
+                        
                         # Get file info
                         file_info = await client.stat(file_path)
+                        print(f"File info: {file_info}")
+                        
                         # Check if it's a file (not a directory)
                         if file_info.get('type') == 'dir':
                             failed_files.append(f"`{file_path}` (not a file)")
@@ -185,7 +189,10 @@ class FTPSync(commands.Cog):
                                     os.unlink(temp_path)
                                     
                         except Exception as download_error:
-                            raise Exception(f"Download failed: {str(download_error)}")
+                            import traceback
+                            error_details = traceback.format_exc()
+                            print(f"Download error for {file_path}: {error_details}")
+                            raise Exception(f"Download failed: {str(download_error)} - {error_details}")
                         
                         # Get filename from path
                         filename = os.path.basename(file_path)

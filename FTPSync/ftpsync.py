@@ -146,10 +146,25 @@ class FTPSync(commands.Cog):
                             failed_files.append(f"`{file_path}` (not a file)")
                             continue
                         
-                        # Download file
-                        file_data = io.BytesIO()
-                        await client.download(file_path, file_data)
-                        file_data.seek(0)
+                        # Download file to temporary file
+                        import tempfile
+                        import os
+                        
+                        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                            temp_path = temp_file.name
+                        
+                        try:
+                            await client.download(file_path, temp_path)
+                            
+                            # Read the downloaded file into BytesIO
+                            file_data = io.BytesIO()
+                            with open(temp_path, 'rb') as f:
+                                file_data.write(f.read())
+                            file_data.seek(0)
+                        finally:
+                            # Clean up temporary file
+                            if os.path.exists(temp_path):
+                                os.unlink(temp_path)
                         
                         # Get filename from path
                         filename = os.path.basename(file_path)

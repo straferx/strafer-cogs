@@ -148,7 +148,9 @@ class FTPSync(commands.Cog):
                         
                         # Download file
                         file_data = io.BytesIO()
-                        await client.download_stream(file_path, file_data.write)
+                        async with client.download_stream(file_path) as stream:
+                            async for chunk in stream:
+                                file_data.write(chunk)
                         file_data.seek(0)
                         
                         # Get filename from path

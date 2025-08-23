@@ -162,18 +162,25 @@ class FTPSync(commands.Cog):
                             temp_path = temp_file.name
                         
                         try:
-                            # Use a more basic approach with temporary file
+                            # Use ftplib for download instead of aioftp
+                            import ftplib
                             import tempfile
                             import os
                             
-                            # Create a temporary file in current directory
-                            import uuid
-                            temp_filename = f"ftp_temp_{uuid.uuid4().hex}.tmp"
-                            temp_path = os.path.join(os.getcwd(), temp_filename)
+                            # Create a temporary file
+                            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                                temp_path = temp_file.name
                             
                             try:
-                                # Download the file
-                                await client.download(file_path, temp_path)
+                                # Use ftplib to download
+                                ftp = ftplib.FTP()
+                                ftp.connect(guild_config["ftp_host"], guild_config["ftp_port"])
+                                ftp.login(guild_config["ftp_username"], guild_config["ftp_password"])
+                                
+                                with open(temp_path, 'wb') as f:
+                                    ftp.retrbinary(f'RETR {file_path}', f.write)
+                                
+                                ftp.quit()
                                 
                                 # Check if file was downloaded
                                 if not os.path.exists(temp_path) or os.path.getsize(temp_path) == 0:

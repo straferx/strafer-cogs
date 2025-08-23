@@ -1,4 +1,4 @@
-from .ftpsync import ftpsync
+from .ftpsync import FtpSync
 
 async def setup(bot):
     await bot.add_cog(ftpsync(bot)) 

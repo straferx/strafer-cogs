@@ -1,5 +1,4 @@
 import discord
-from discord import app_commands
 from redbot.core import commands, Config
 from redbot.core.bot import Red
 from redbot.core.data_manager import cog_data_path
@@ -25,14 +24,63 @@ class FTPSync(commands.Cog):
             use_zip_file=False
         )
 
-    @commands.hybrid_command(name="setftpconfig")
+    @commands.command(name="setftphost")
     @commands.has_permissions(administrator=True)
-    async def set_ftp_config(self, ctx: commands.Context):
-        """Set FTP configuration using a modal window."""
-        modal = FTPConfigModal(self.config, ctx.guild)
-        await ctx.interaction.response.send_modal(modal)
+    async def set_ftp_host(self, ctx: commands.Context, host: str):
+        """Set the FTP host."""
+        await self.config.guild(ctx.guild).ftp_host.set(host)
+        embed = discord.Embed(
+            title="✅ FTP Host Updated",
+            description=f"FTP host has been set to: `{host}`",
+            color=discord.Color.green()
+        )
+        await ctx.send(embed=embed)
 
-    @commands.hybrid_command(name="ftpbackup")
+    @commands.command(name="setftpport")
+    @commands.has_permissions(administrator=True)
+    async def set_ftp_port(self, ctx: commands.Context, port: int):
+        """Set the FTP port."""
+        if port <= 0 or port > 65535:
+            embed = discord.Embed(
+                title="❌ Invalid Port",
+                description="Port must be between 1 and 65535.",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed)
+            return
+        await self.config.guild(ctx.guild).ftp_port.set(port)
+        embed = discord.Embed(
+            title="✅ FTP Port Updated",
+            description=f"FTP port has been set to: `{port}`",
+            color=discord.Color.green()
+        )
+        await ctx.send(embed=embed)
+
+    @commands.command(name="setftpusername")
+    @commands.has_permissions(administrator=True)
+    async def set_ftp_username(self, ctx: commands.Context, username: str):
+        """Set the FTP username."""
+        await self.config.guild(ctx.guild).ftp_username.set(username)
+        embed = discord.Embed(
+            title="✅ FTP Username Updated",
+            description=f"FTP username has been set to: `{username}`",
+            color=discord.Color.green()
+        )
+        await ctx.send(embed=embed)
+
+    @commands.command(name="setftppassword")
+    @commands.has_permissions(administrator=True)
+    async def set_ftp_password(self, ctx: commands.Context, password: str):
+        """Set the FTP password."""
+        await self.config.guild(ctx.guild).ftp_password.set(password)
+        embed = discord.Embed(
+            title="✅ FTP Password Updated",
+            description="FTP password has been set successfully.",
+            color=discord.Color.green()
+        )
+        await ctx.send(embed=embed)
+
+    @commands.command(name="ftpbackup")
     @commands.has_permissions(administrator=True)
     async def ftp_backup(self, ctx: commands.Context):
         """Backup files from FTP server to the current Discord channel."""
@@ -41,16 +89,35 @@ class FTPSync(commands.Cog):
         
         # Check if FTP is configured
         if not guild_config["ftp_host"] or not guild_config["ftp_username"]:
-            await ctx.send("❌ FTP configuration is not set. Use `/setftpconfig` first.")
+            embed = discord.Embed(
+                title="❌ FTP Not Configured",
+                description="FTP configuration is not complete. Please set up the following:\n"
+                           "• `setftphost <host>`\n"
+                           "• `setftpport <port>`\n"
+                           "• `setftpusername <username>`\n"
+                           "• `setftppassword <password>`",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed)
             return
         
         # Check if backup paths are configured
         if not guild_config["backup_paths"]:
-            await ctx.send("❌ No backup paths configured. Use `/addbackuppath` to add files to backup.")
+            embed = discord.Embed(
+                title="❌ No Backup Paths",
+                description="No backup paths configured. Use `addbackuppath <file_path>` to add files to backup.",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed)
             return
 
         # Send initial message
-        status_msg = await ctx.send("🔄 Connecting to FTP server...")
+        status_embed = discord.Embed(
+            title="🔄 Connecting to FTP Server",
+            description="Attempting to connect to the FTP server...",
+            color=discord.Color.blue()
+        )
+        status_msg = await ctx.send(embed=status_embed)
         
         try:
             # Connect to FTP server
@@ -60,9 +127,14 @@ class FTPSync(commands.Cog):
                 user=guild_config["ftp_username"],
                 password=guild_config["ftp_password"]
             ) as client:
-                await status_msg.edit(content="✅ Connected to FTP server. Downloading files...")
+                # Update status
+                status_embed.title = "✅ Connected to FTP Server"
+                status_embed.description = "Downloading files..."
+                status_embed.color = discord.Color.green()
+                await status_msg.edit(embed=status_embed)
                 
                 files_to_send = []
+                failed_files = []
                 
                 # Download each file
                 for file_path in guild_config["backup_paths"]:
@@ -70,7 +142,7 @@ class FTPSync(commands.Cog):
                         # Get file info
                         file_info = await client.stat(file_path)
                         if not file_info.is_file():
-                            await ctx.send(f"⚠️ Path `{file_path}` is not a file, skipping...")
+                            failed_files.append(f"`{file_path}` (not a file)")
                             continue
                         
                         # Download file
@@ -82,10 +154,23 @@ class FTPSync(commands.Cog):
                         filename = os.path.basename(file_path)
                         
                         files_to_send.append((filename, file_data))
-                        await ctx.send(f"✅ Downloaded: `{filename}`")
+                        
+                        # Send individual success message
+                        success_embed = discord.Embed(
+                            title="✅ File Downloaded",
+                            description=f"Successfully downloaded: `{filename}`",
+                            color=discord.Color.green()
+                        )
+                        await ctx.send(embed=success_embed)
                         
                     except Exception as e:
-                        await ctx.send(f"❌ Failed to download `{file_path}`: {str(e)}")
+                        failed_files.append(f"`{file_path}` ({str(e)})")
+                        error_embed = discord.Embed(
+                            title="❌ Download Failed",
+                            description=f"Failed to download `{file_path}`: {str(e)}",
+                            color=discord.Color.red()
+                        )
+                        await ctx.send(embed=error_embed)
                 
                 # Send files to Discord
                 if files_to_send:
@@ -98,77 +183,151 @@ class FTPSync(commands.Cog):
                         
                         zip_data.seek(0)
                         zip_file = discord.File(zip_data, filename="backup.zip")
-                        await ctx.send("📦 Sending files as ZIP archive:", file=zip_file)
+                        
+                        zip_embed = discord.Embed(
+                            title="📦 Backup Complete",
+                            description=f"Successfully backed up {len(files_to_send)} files as ZIP archive.",
+                            color=discord.Color.green()
+                        )
+                        await ctx.send(embed=zip_embed, file=zip_file)
                     else:
                         # Send individual files
                         for filename, file_data in files_to_send:
                             discord_file = discord.File(file_data, filename=filename)
-                            await ctx.send(f"📄 File: `{filename}`", file=discord_file)
+                            file_embed = discord.Embed(
+                                title="📄 File Backup",
+                                description=f"File: `{filename}`",
+                                color=discord.Color.blue()
+                            )
+                            await ctx.send(embed=file_embed, file=discord_file)
                     
-                    await status_msg.edit(content="✅ Backup completed successfully!")
+                    # Final status update
+                    final_embed = discord.Embed(
+                        title="✅ Backup Completed",
+                        description=f"Successfully backed up {len(files_to_send)} files.",
+                        color=discord.Color.green()
+                    )
+                    if failed_files:
+                        final_embed.add_field(
+                            name="Failed Files",
+                            value="\n".join(failed_files),
+                            inline=False
+                        )
+                    await status_msg.edit(embed=final_embed)
                 else:
-                    await status_msg.edit(content="❌ No files were downloaded successfully.")
+                    # No files downloaded
+                    final_embed = discord.Embed(
+                        title="❌ Backup Failed",
+                        description="No files were downloaded successfully.",
+                        color=discord.Color.red()
+                    )
+                    if failed_files:
+                        final_embed.add_field(
+                            name="Failed Files",
+                            value="\n".join(failed_files),
+                            inline=False
+                        )
+                    await status_msg.edit(embed=final_embed)
                     
         except Exception as e:
-            await status_msg.edit(content=f"❌ Failed to connect to FTP server: {str(e)}")
+            error_embed = discord.Embed(
+                title="❌ Connection Failed",
+                description=f"Failed to connect to FTP server: {str(e)}",
+                color=discord.Color.red()
+            )
+            await status_msg.edit(embed=error_embed)
 
-    @commands.hybrid_command(name="addbackuppath")
+    @commands.command(name="addbackuppath")
     @commands.has_permissions(administrator=True)
     async def add_backup_path(self, ctx: commands.Context, file_path: str):
         """Add a file path to the backup list."""
         async with self.config.guild(ctx.guild).backup_paths() as paths:
             if file_path not in paths:
                 paths.append(file_path)
-                await ctx.send(f"✅ Added `{file_path}` to backup paths.")
+                embed = discord.Embed(
+                    title="✅ Backup Path Added",
+                    description=f"Added `{file_path}` to backup paths.",
+                    color=discord.Color.green()
+                )
+                await ctx.send(embed=embed)
             else:
-                await ctx.send(f"⚠️ `{file_path}` is already in the backup paths.")
+                embed = discord.Embed(
+                    title="⚠️ Path Already Exists",
+                    description=f"`{file_path}` is already in the backup paths.",
+                    color=discord.Color.orange()
+                )
+                await ctx.send(embed=embed)
 
-    @commands.hybrid_command(name="removebackuppath")
+    @commands.command(name="removebackuppath")
     @commands.has_permissions(administrator=True)
     async def remove_backup_path(self, ctx: commands.Context, file_path: str):
         """Remove a file path from the backup list."""
         async with self.config.guild(ctx.guild).backup_paths() as paths:
             if file_path in paths:
                 paths.remove(file_path)
-                await ctx.send(f"✅ Removed `{file_path}` from backup paths.")
+                embed = discord.Embed(
+                    title="✅ Backup Path Removed",
+                    description=f"Removed `{file_path}` from backup paths.",
+                    color=discord.Color.green()
+                )
+                await ctx.send(embed=embed)
             else:
-                await ctx.send(f"⚠️ `{file_path}` is not in the backup paths.")
+                embed = discord.Embed(
+                    title="⚠️ Path Not Found",
+                    description=f"`{file_path}` is not in the backup paths.",
+                    color=discord.Color.orange()
+                )
+                await ctx.send(embed=embed)
 
-    @commands.hybrid_command(name="listbackuppaths")
+    @commands.command(name="listbackuppaths")
     @commands.has_permissions(administrator=True)
     async def list_backup_paths(self, ctx: commands.Context):
         """List all configured backup paths."""
         paths = await self.config.guild(ctx.guild).backup_paths()
         if paths:
             paths_text = "\n".join([f"• `{path}`" for path in paths])
-            embed = discord.Embed(title="Backup Paths", description=paths_text, color=discord.Color.blue())
+            embed = discord.Embed(
+                title="📝 Backup Paths",
+                description=paths_text,
+                color=discord.Color.blue()
+            )
             await ctx.send(embed=embed)
         else:
-            await ctx.send("📝 No backup paths configured.")
+            embed = discord.Embed(
+                title="📝 No Backup Paths",
+                description="No backup paths configured.",
+                color=discord.Color.blue()
+            )
+            await ctx.send(embed=embed)
 
-    @commands.hybrid_command(name="usezipfile")
+    @commands.command(name="usezipfile")
     @commands.has_permissions(administrator=True)
     async def use_zip_file(self, ctx: commands.Context, use_zip: bool):
         """Set whether to use ZIP files when sending multiple files."""
         await self.config.guild(ctx.guild).use_zip_file.set(use_zip)
         status = "enabled" if use_zip else "disabled"
-        await ctx.send(f"✅ ZIP file mode {status}.")
+        embed = discord.Embed(
+            title="✅ ZIP Mode Updated",
+            description=f"ZIP file mode has been {status}.",
+            color=discord.Color.green()
+        )
+        await ctx.send(embed=embed)
 
-    @commands.hybrid_command(name="ftpstatus")
+    @commands.command(name="ftpstatus")
     @commands.has_permissions(administrator=True)
     async def ftp_status(self, ctx: commands.Context):
         """Show current FTP configuration status."""
         config = await self.config.guild(ctx.guild).all()
         
-        embed = discord.Embed(title="FTP Configuration Status", color=discord.Color.blue())
+        embed = discord.Embed(title="📊 FTP Configuration Status", color=discord.Color.blue())
         
         # FTP connection info
-        ftp_info = f"Host: `{config['ftp_host'] or 'Not set'}`\n"
-        ftp_info += f"Port: `{config['ftp_port']}`\n"
-        ftp_info += f"Username: `{config['ftp_username'] or 'Not set'}`\n"
-        ftp_info += f"Password: `{'*' * len(config['ftp_password']) if config['ftp_password'] else 'Not set'}`"
+        ftp_info = f"**Host:** `{config['ftp_host'] or 'Not set'}`\n"
+        ftp_info += f"**Port:** `{config['ftp_port']}`\n"
+        ftp_info += f"**Username:** `{config['ftp_username'] or 'Not set'}`\n"
+        ftp_info += f"**Password:** `{'*' * len(config['ftp_password']) if config['ftp_password'] else 'Not set'}`"
         
-        embed.add_field(name="FTP Connection", value=ftp_info, inline=False)
+        embed.add_field(name="🔗 FTP Connection", value=ftp_info, inline=False)
         
         # Backup paths
         paths = config['backup_paths']
@@ -177,72 +336,70 @@ class FTPSync(commands.Cog):
         else:
             paths_text = "No paths configured"
         
-        embed.add_field(name="Backup Paths", value=paths_text, inline=False)
+        embed.add_field(name="📁 Backup Paths", value=paths_text, inline=False)
         
         # ZIP setting
-        zip_status = "Enabled" if config['use_zip_file'] else "Disabled"
-        embed.add_field(name="ZIP Mode", value=zip_status, inline=False)
+        zip_status = "✅ Enabled" if config['use_zip_file'] else "❌ Disabled"
+        embed.add_field(name="📦 ZIP Mode", value=zip_status, inline=False)
         
         await ctx.send(embed=embed)
 
-class FTPConfigModal(discord.ui.Modal, title="FTP Configuration"):
-    def __init__(self, config: Config, guild: discord.Guild):
-        super().__init__()
-        self.config = config
-        self.guild = guild
-
-    host = discord.ui.TextInput(
-        label="FTP Host",
-        placeholder="ftp.example.com",
-        required=True,
-        max_length=255
-    )
-
-    port = discord.ui.TextInput(
-        label="FTP Port",
-        placeholder="21",
-        required=True,
-        default="21",
-        max_length=5
-    )
-
-    username = discord.ui.TextInput(
-        label="FTP Username",
-        placeholder="username",
-        required=True,
-        max_length=100
-    )
-
-    password = discord.ui.TextInput(
-        label="FTP Password",
-        placeholder="password",
-        required=True,
-        max_length=100,
-        style=discord.TextStyle.short
-    )
-
-    async def on_submit(self, interaction: discord.Interaction):
-        try:
-            port = int(self.port.value)
-            if port <= 0 or port > 65535:
-                raise ValueError("Port must be between 1 and 65535")
-        except ValueError:
-            await interaction.response.send_message("❌ Invalid port number. Please use a number between 1 and 65535.", ephemeral=True)
+    @commands.command(name="testftp")
+    @commands.has_permissions(administrator=True)
+    async def test_ftp(self, ctx: commands.Context):
+        """Test the FTP connection."""
+        guild_config = await self.config.guild(ctx.guild).all()
+        
+        if not guild_config["ftp_host"] or not guild_config["ftp_username"]:
+            embed = discord.Embed(
+                title="❌ FTP Not Configured",
+                description="Please configure FTP settings first using:\n"
+                           "• `setftphost <host>`\n"
+                           "• `setftpport <port>`\n"
+                           "• `setftpusername <username>`\n"
+                           "• `setftppassword <password>`",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed)
             return
 
-        # Save configuration
-        await self.config.guild(self.guild).ftp_host.set(self.host.value)
-        await self.config.guild(self.guild).ftp_port.set(port)
-        await self.config.guild(self.guild).ftp_username.set(self.username.value)
-        await self.config.guild(self.guild).ftp_password.set(self.password.value)
-
-        embed = discord.Embed(
-            title="✅ FTP Configuration Saved",
-            description="Your FTP configuration has been updated successfully.",
-            color=discord.Color.green()
+        status_embed = discord.Embed(
+            title="🔄 Testing FTP Connection",
+            description="Attempting to connect to the FTP server...",
+            color=discord.Color.blue()
         )
-        embed.add_field(name="Host", value=self.host.value, inline=True)
-        embed.add_field(name="Port", value=str(port), inline=True)
-        embed.add_field(name="Username", value=self.username.value, inline=True)
-
-        await interaction.response.send_message(embed=embed, ephemeral=True) 
+        status_msg = await ctx.send(embed=status_embed)
+        
+        try:
+            async with aioftp.Client.context(
+                guild_config["ftp_host"],
+                guild_config["ftp_port"],
+                user=guild_config["ftp_username"],
+                password=guild_config["ftp_password"]
+            ) as client:
+                # Test connection by listing root directory
+                files = []
+                async for file_info in client.list():
+                    files.append(file_info.name)
+                
+                success_embed = discord.Embed(
+                    title="✅ FTP Connection Successful",
+                    description=f"Successfully connected to FTP server.\n"
+                               f"Found {len(files)} items in root directory.",
+                    color=discord.Color.green()
+                )
+                if files:
+                    files_text = "\n".join([f"• `{file}`" for file in files[:10]])  # Show first 10
+                    if len(files) > 10:
+                        files_text += f"\n... and {len(files) - 10} more"
+                    success_embed.add_field(name="📁 Root Directory Contents", value=files_text, inline=False)
+                
+                await status_msg.edit(embed=success_embed)
+                
+        except Exception as e:
+            error_embed = discord.Embed(
+                title="❌ FTP Connection Failed",
+                description=f"Failed to connect to FTP server: {str(e)}",
+                color=discord.Color.red()
+            )
+            await status_msg.edit(embed=error_embed) 

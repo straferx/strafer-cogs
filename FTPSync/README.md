@@ -7,62 +7,72 @@ A Red-DiscordBot cog for backing up files from an FTP server to Discord channels
 - Connect to FTP servers and download files
 - Backup multiple files to Discord channels
 - Optional ZIP compression for multiple files
-- Secure configuration using Discord modals
 - Guild-specific configuration
+- Beautiful embed-based responses
 
 ## Commands
 
-### `/setftpconfig`
-Opens a modal window to configure FTP connection settings:
-- **Host**: FTP server hostname or IP address
-- **Port**: FTP server port (default: 21)
-- **Username**: FTP username
-- **Password**: FTP password (hidden input)
+### FTP Configuration Commands
 
-### `ftpbackup`
-Downloads and sends all configured backup files to the current Discord channel.
+- `setftphost <host>` - Set FTP server hostname or IP address
+- `setftpport <port>` - Set FTP server port (default: 21)
+- `setftpusername <username>` - Set FTP username
+- `setftppassword <password>` - Set FTP password
 
-### `addbackuppath <file_path>`
-Adds a file path to the backup list. Example: `/addbackuppath /path/to/file.txt`
+### Backup Commands
 
-### `removebackuppath <file_path>`
-Removes a file path from the backup list.
+- `ftpbackup` - Downloads and sends all configured backup files to the current Discord channel
+- `addbackuppath <file_path>` - Add a file path to the backup list
+- `removebackuppath <file_path>` - Remove a file path from the backup list
+- `listbackuppaths` - List all currently configured backup paths
 
-### `listbackuppaths`
-Lists all currently configured backup paths.
+### Utility Commands
 
-### `usezipfile <true/false>`
-Enables or disables ZIP compression when sending multiple files.
-
-### `ftpstatus`
-Shows the current FTP configuration status including connection details and backup paths.
+- `usezipfile <true/false>` - Enable or disable ZIP compression when sending multiple files
+- `ftpstatus` - Show current FTP configuration status including connection details and backup paths
+- `testftp` - Test the FTP connection and show root directory contents
 
 ## Setup Instructions
 
 1. **Install the cog** in your Red-DiscordBot
-2. **Configure FTP settings** using `setftpconfig`
+2. **Configure FTP settings** using the configuration commands:
+   ```
+   setftphost your-ftp-server.com
+   setftpport 21
+   setftpusername your-username
+   setftppassword your-password
+   ```
 3. **Add backup paths** using `addbackuppath` for each file you want to backup
-4. **Run backup** using `ftpbackup`
+4. **Test connection** using `testftp` to verify everything works
+5. **Run backup** using `ftpbackup`
 
 ## Example Usage
 
 1. Set up FTP configuration:
    ```
-   setftpconfig
+   setftphost ftp.example.com
+   setftpport 21
+   setftpusername myuser
+   setftppassword mypassword
    ```
 
-2. Add files to backup:
+2. Test the connection:
+   ```
+   testftp
+   ```
+
+3. Add files to backup:
    ```
    addbackuppath /var/log/application.log
    addbackuppath /backup/database.sql
    ```
 
-3. Enable ZIP mode (optional):
+4. Enable ZIP mode (optional):
    ```
    usezipfile true
    ```
 
-4. Run backup:
+5. Run backup:
    ```
    ftpbackup
    ```
@@ -81,6 +91,7 @@ Shows the current FTP configuration status including connection details and back
 
 ## Troubleshooting
 
-- **Connection failed**: Check your FTP host, port, username, and password
+- **Connection failed**: Use `testftp` to verify your FTP settings
 - **File not found**: Verify the file paths exist on the FTP server
-- **Permission denied**: Ensure the FTP user has read access to the specified files 
+- **Permission denied**: Ensure the FTP user has read access to the specified files
+- **Configuration issues**: Use `ftpstatus` to check your current settings 

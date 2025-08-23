@@ -112,12 +112,7 @@ class Ftpsync(commands.Cog):
             return
 
         # Send initial message
-        status_embed = discord.Embed(
-            title="🔄 Connecting to FTP Server",
-            description="Attempting to connect to the FTP server...",
-            color=discord.Color.blue()
-        )
-        status_msg = await ctx.send(embed=status_embed)
+        status_msg = await ctx.send("🔄 Connecting to FTP server...")
         
         try:
             # Connect to FTP server
@@ -128,10 +123,7 @@ class Ftpsync(commands.Cog):
                 password=guild_config["ftp_password"]
             ) as client:
                 # Update status
-                status_embed.title = "✅ Connected to FTP Server"
-                status_embed.description = "Downloading files..."
-                status_embed.color = discord.Color.green()
-                await status_msg.edit(embed=status_embed)
+                await status_msg.edit(content="✅ Connected to FTP server. Downloading files...")
                 
                 files_to_send = []
                 failed_files = []

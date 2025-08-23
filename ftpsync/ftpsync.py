@@ -101,94 +101,82 @@ class Ftpsync(commands.Cog):
         status_msg = await ctx.send("🔄 Connecting to FTP server...")
         
         try:
-            # Connect to FTP server
-            async with aioftp.Client.context(
-                guild_config["ftp_host"],
-                guild_config["ftp_port"],
-                user=guild_config["ftp_username"],
-                password=guild_config["ftp_password"]
-            ) as client:
-                # Update status
-                await status_msg.edit(content="✅ Connected to FTP server. Downloading files...")
-                
-                files_to_send = []
-                failed_files = []
-                
-                # Download each file
-                for file_path in guild_config["backup_paths"]:
+            # Update status
+            await status_msg.edit(content="✅ Connected to FTP server. Downloading files...")
+            
+            files_to_send = []
+            failed_files = []
+            
+            # Download each file using ftplib
+            for file_path in guild_config["backup_paths"]:
+                try:
+                    # Use ftplib to download
+                    import ftplib
+                    import tempfile
+                    import os
+                    
+                    # Create a temporary file
+                    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                        temp_path = temp_file.name
+                    
                     try:
-                        # Get file info
-                        file_info = await client.stat(file_path)
+                        # Connect and download
+                        ftp = ftplib.FTP()
+                        ftp.connect(guild_config["ftp_host"], guild_config["ftp_port"])
+                        ftp.login(guild_config["ftp_username"], guild_config["ftp_password"])
                         
-                        # Check if it's a file (not a directory)
-                        if file_info.get('type') == 'dir':
-                            failed_files.append(f"`{file_path}` (not a file)")
+                        # Check if file exists and get size
+                        try:
+                            file_size = ftp.size(file_path)
+                            if file_size == -1:
+                                failed_files.append(f"`{file_path}` (file not found)")
+                                continue
+                        except:
+                            failed_files.append(f"`{file_path}` (file not found)")
                             continue
                         
-                        # Download file to temporary file
-                        import tempfile
-                        import os
+                        # Download the file
+                        with open(temp_path, 'wb') as f:
+                            ftp.retrbinary(f'RETR {file_path}', f.write)
                         
-                        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                            temp_path = temp_file.name
+                        ftp.quit()
                         
-                        try:
-                            # Use ftplib for download instead of aioftp
-                            import ftplib
-                            import tempfile
-                            import os
-                            
-                            # Create a temporary file
-                            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                                temp_path = temp_file.name
-                            
+                        # Check if file was downloaded
+                        if not os.path.exists(temp_path) or os.path.getsize(temp_path) == 0:
+                            raise Exception("File download failed or file is empty")
+                        
+                        # Read into BytesIO
+                        file_data = io.BytesIO()
+                        with open(temp_path, 'rb') as f:
+                            file_data.write(f.read())
+                        file_data.seek(0)
+                        
+                    finally:
+                        # Clean up temp file
+                        if os.path.exists(temp_path):
                             try:
-                                # Use ftplib to download
-                                ftp = ftplib.FTP()
-                                ftp.connect(guild_config["ftp_host"], guild_config["ftp_port"])
-                                ftp.login(guild_config["ftp_username"], guild_config["ftp_password"])
+                                os.unlink(temp_path)
+                            except:
+                                pass  # Ignore cleanup errors
                                 
-                                with open(temp_path, 'wb') as f:
-                                    ftp.retrbinary(f'RETR {file_path}', f.write)
-                                
-                                ftp.quit()
-                                
-                                # Check if file was downloaded
-                                if not os.path.exists(temp_path) or os.path.getsize(temp_path) == 0:
-                                    raise Exception("File download failed or file is empty")
-                                
-                                # Read into BytesIO
-                                file_data = io.BytesIO()
-                                with open(temp_path, 'rb') as f:
-                                    file_data.write(f.read())
-                                file_data.seek(0)
-                                
-                            finally:
-                                # Clean up temp file
-                                if os.path.exists(temp_path):
-                                    try:
-                                        os.unlink(temp_path)
-                                    except:
-                                        pass  # Ignore cleanup errors
-                                    
-                        except Exception as download_error:
-                            # Truncate error message to avoid Discord embed limits
-                            error_msg = str(download_error)
-                            if len(error_msg) > 500:
-                                error_msg = error_msg[:500] + "..."
-                            raise Exception(f"Download failed: {error_msg}")
-                        
-                        # Get filename from path
-                        filename = os.path.basename(file_path)
-                        
-                        files_to_send.append((filename, file_data))
-                        
-                        # Send simple success message
-                        await ctx.send(f"✅ Downloaded: `{filename}`")
-                        
-                    except Exception as e:
-                        failed_files.append(f"`{file_path}` ({str(e)})")
-                        await ctx.send(f"❌ Failed to download `{file_path}`: {str(e)}")
+                except Exception as download_error:
+                    # Truncate error message
+                    error_msg = str(download_error)
+                    if len(error_msg) > 500:
+                        error_msg = error_msg[:500] + "..."
+                    raise Exception(f"Download failed: {error_msg}")
+                
+                # Get filename from path
+                filename = os.path.basename(file_path)
+                
+                files_to_send.append((filename, file_data))
+                
+                # Send simple success message
+                await ctx.send(f"✅ Downloaded: `{filename}`")
+                
+            except Exception as e:
+                failed_files.append(f"`{file_path}` ({str(e)})")
+                await ctx.send(f"❌ Failed to download `{file_path}`: {str(e)}")
                 
                 # Send files to Discord
                 if files_to_send:

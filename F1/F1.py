@@ -47,6 +47,88 @@ class F1(commands.Cog):
             print(f"Error fetching data from {endpoint}: {e}")
             return []
 
+    @commands.command(name="f1")
+    async def f1_overview(self, ctx):
+        """Show current F1 overview with recent/upcoming sessions and useful stats."""
+        async with ctx.typing():
+            # Get current year sessions
+            current_year = datetime.now().year
+            data = await self.fetch_data("sessions", {"year": current_year})
+            
+            if not data:
+                await ctx.send("❌ No F1 sessions found for this year")
+                return
+            
+            # Sort sessions by date
+            for session in data:
+                session['date_start'] = datetime.fromisoformat(session['date_start'].replace('Z', '+00:00'))
+            
+            data.sort(key=lambda x: x['date_start'])
+            
+            # Get upcoming and recent sessions
+            now = datetime.now().replace(tzinfo=None)
+            upcoming_sessions = [s for s in data if s['date_start'] > now][:5]
+            recent_sessions = [s for s in data if s['date_start'] <= now][-3:]
+            
+            embed = discord.Embed(
+                title="🏎️ Formula 1 Overview",
+                description=f"Current season: {current_year}",
+                color=discord.Color.red(),
+                timestamp=datetime.utcnow()
+            )
+            
+            # Show upcoming sessions
+            if upcoming_sessions:
+                upcoming_text = ""
+                for session in upcoming_sessions:
+                    time_until = session['date_start'] - now
+                    days = time_until.days
+                    hours = time_until.seconds // 3600
+                    
+                    if days > 0:
+                        time_str = f"{days}d {hours}h"
+                    else:
+                        time_str = f"{hours}h"
+                    
+                    upcoming_text += f"**{session['session_name']}** - {session['meeting_name']}\n"
+                    upcoming_text += f"📅 {session['date_start'].strftime('%Y-%m-%d %H:%M UTC')}\n"
+                    upcoming_text += f"⏰ In {time_str} | 🔑 `{session['session_key']}`\n\n"
+                
+                embed.add_field(
+                    name="🔄 Upcoming Sessions",
+                    value=upcoming_text,
+                    inline=False
+                )
+            
+            # Show recent sessions
+            if recent_sessions:
+                recent_text = ""
+                for session in recent_sessions:
+                    recent_text += f"**{session['session_name']}** - {session['meeting_name']}\n"
+                    recent_text += f"📅 {session['date_start'].strftime('%Y-%m-%d %H:%M UTC')}\n"
+                    recent_text += f"🔑 `{session['session_key']}`\n\n"
+                
+                embed.add_field(
+                    name="📊 Recent Sessions",
+                    value=recent_text,
+                    inline=False
+                )
+            
+            # Add usage tips
+            embed.add_field(
+                name="💡 Quick Commands",
+                value="• `f1driver <number>` - Get driver info\n"
+                      "• `f1drivers latest` - Current session drivers\n"
+                      "• `f1laps <session_key> [driver]` - Lap data\n"
+                      "• `f1weather latest` - Current weather\n"
+                      "• `f1telemetry <session_key> <driver> [speed]` - Car data\n"
+                      "• `f1radio <session_key> [driver]` - Team radio",
+                inline=False
+            )
+            
+            embed.set_footer(text="Data from OpenF1 API • Use session keys from above for detailed commands")
+            await ctx.send(embed=embed)
+
     @commands.command(name="f1driver")
     async def f1driver(self, ctx, driver_number: int):
         """Get information about a specific F1 driver by their number."""
@@ -315,6 +397,7 @@ class F1(commands.Cog):
 
 
 
+    @f1.error
     @f1driver.error
     @f1drivers.error
     @f1sessions.error

@@ -18,6 +18,7 @@ This cog provides access to real-time and historical Formula 1 data including:
 
 | Command | Description | Usage |
 |---------|-------------|-------|
+| `f1` | Show F1 overview with upcoming sessions and session keys | `f1` |
 | `f1driver` | Get information about a specific F1 driver | `f1driver <driver_number>` |
 | `f1drivers` | Get all drivers for a session | `f1drivers [session_key]` |
 | `f1sessions` | Get F1 sessions for a year | `f1sessions [year]` |
@@ -39,6 +40,12 @@ This cog provides access to real-time and historical Formula 1 data including:
    ```
 
 ## Usage Examples
+
+### Get F1 overview and session keys
+```
+f1
+```
+Shows upcoming and recent F1 sessions with their session keys, making it easy to use other commands
 
 ### Get driver information
 ```
@@ -69,6 +76,12 @@ Shows current weather conditions for the latest meeting
 f1telemetry 9159 55 320
 ```
 Shows telemetry data for driver #55 in session 9159 at speeds ≥320 km/h
+
+### Get team radio messages
+```
+f1radio 9159 55
+```
+Shows team radio messages for session 9159, filtered for driver #55
 
 ## API Information
 

@@ -397,7 +397,7 @@ class F1(commands.Cog):
 
 
 
-    @f1.error
+    @f1_overview.error
     @f1driver.error
     @f1drivers.error
     @f1sessions.error

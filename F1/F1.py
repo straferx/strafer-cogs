@@ -385,11 +385,9 @@ class F1(commands.Cog):
             
             data.sort(key=lambda x: x['date_start'])
             
-            # Get upcoming and recent meetings
+            # Get current time for comparison
             now = datetime.now().replace(tzinfo=None)
             now = now.replace(tzinfo=timezone.utc)
-            upcoming_meetings = [m for m in data if m['date_start'] > now][:5]
-            recent_meetings = [m for m in data if m['date_start'] <= now][-3:]
             
             embed = discord.Embed(
                 title="🏁 F1 Meetings/Races",
@@ -397,6 +395,10 @@ class F1(commands.Cog):
                 color=discord.Color.dark_blue(),
                 timestamp=datetime.utcnow()
             )
+            
+            # Show upcoming and recent meetings
+            upcoming_meetings = [m for m in data if m['date_start'] > now][:5]
+            recent_meetings = [m for m in data if m['date_start'] <= now][-3:]
             
             # Show upcoming meetings
             if upcoming_meetings:
@@ -436,6 +438,16 @@ class F1(commands.Cog):
                     value=recent_text,
                     inline=False
                 )
+            
+            # If no upcoming meetings found, show a message
+            if not upcoming_meetings:
+                embed.add_field(
+                    name="📝 Note",
+                    value="No upcoming meetings found for this year. Try using `f1meetings 2026` to see next year's schedule.",
+                    inline=False
+                )
+            
+
             
             embed.set_footer(text="Data from OpenF1 API • Use meeting keys for weather data")
             await ctx.send(embed=embed)

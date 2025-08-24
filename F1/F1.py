@@ -4,7 +4,8 @@ Provides real-time and historical F1 data including driver info, lap times, car 
 """
 
 import discord
-from discord.ext import commands
+from redbot.core import commands
+from redbot.core.bot import Red
 import aiohttp
 import asyncio
 from datetime import datetime, timedelta
@@ -16,7 +17,7 @@ import math
 class F1(commands.Cog):
     """Formula 1 data and statistics using OpenF1 API."""
     
-    def __init__(self, bot):
+    def __init__(self, bot: Red):
         self.bot = bot
         self.base_url = "https://api.openf1.org/v1"
         self.session: Optional[aiohttp.ClientSession] = None
@@ -364,6 +365,4 @@ class F1(commands.Cog):
             await ctx.send(f"❌ An error occurred: {str(error)}")
 
 
-async def setup(bot):
-    """Add the F1 cog to the bot."""
-    await bot.add_cog(F1(bot)) 
+ 

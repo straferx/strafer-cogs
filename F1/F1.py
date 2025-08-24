@@ -123,7 +123,8 @@ class F1(commands.Cog):
                 name="💡 Quick Commands",
                 value="• `f1driver <number>` - Get driver info\n"
                       "• `f1drivers latest` - Current session drivers\n"
-                      "• `f1meetings` - Upcoming races/meetings\n"
+                      "• `f1meetings` - Current year meetings\n"
+                      "• `f1upcoming` - Find upcoming meetings across years\n"
                       "• `f1laps <session_key> [driver]` - Lap data\n"
                       "• `f1weather latest` - Current weather\n"
                       "• `f1telemetry <session_key> <driver> [speed]` - Car data\n"
@@ -379,6 +380,11 @@ class F1(commands.Cog):
                 await ctx.send("❌ No meetings found")
                 return
                 
+            # Debug: Show what we got
+            print(f"Found {len(data)} meetings for year {year if year else 'current'}")
+            for meeting in data:
+                print(f"- {meeting['meeting_name']}: {meeting['date_start']}")
+                
             # Sort meetings by date
             for meeting in data:
                 meeting['date_start'] = datetime.fromisoformat(meeting['date_start'].replace('Z', '+00:00'))
@@ -452,6 +458,70 @@ class F1(commands.Cog):
             embed.set_footer(text="Data from OpenF1 API • Use meeting keys for weather data")
             await ctx.send(embed=embed)
 
+    @commands.command(name="f1upcoming")
+    async def f1upcoming(self, ctx):
+        """Find upcoming F1 meetings across multiple years."""
+        async with ctx.typing():
+            current_year = datetime.now().year
+            now = datetime.now().replace(tzinfo=None)
+            now = now.replace(tzinfo=timezone.utc)
+            
+            all_upcoming_meetings = []
+            
+            # Try current year and next 2 years
+            for year in range(current_year, current_year + 3):
+                data = await self.fetch_data("meetings", {"year": year})
+                if data:
+                    for meeting in data:
+                        meeting['date_start'] = datetime.fromisoformat(meeting['date_start'].replace('Z', '+00:00'))
+                        if meeting['date_start'] > now:
+                            all_upcoming_meetings.append(meeting)
+            
+            # Sort by date
+            all_upcoming_meetings.sort(key=lambda x: x['date_start'])
+            
+            embed = discord.Embed(
+                title="🏁 Upcoming F1 Meetings",
+                description="Searching across multiple years for upcoming races",
+                color=discord.Color.green(),
+                timestamp=datetime.utcnow()
+            )
+            
+            if all_upcoming_meetings:
+                upcoming_text = ""
+                for meeting in all_upcoming_meetings[:8]:  # Show next 8 meetings
+                    time_until = meeting['date_start'] - now
+                    days = time_until.days
+                    hours = time_until.seconds // 3600
+                    
+                    if days > 0:
+                        time_str = f"{days}d {hours}h"
+                    else:
+                        time_str = f"{hours}h"
+                    
+                    upcoming_text += f"**{meeting['meeting_name']}**\n"
+                    upcoming_text += f"📍 {meeting.get('circuit_short_name', 'Unknown Circuit')}\n"
+                    upcoming_text += f"📅 {meeting['date_start'].strftime('%Y-%m-%d %H:%M UTC')}\n"
+                    upcoming_text += f"⏰ In {time_str} | 🔑 `{meeting['meeting_key']}`\n\n"
+                
+                embed.add_field(
+                    name="🔄 Next Upcoming Meetings",
+                    value=upcoming_text,
+                    inline=False
+                )
+            else:
+                embed.add_field(
+                    name="📝 No Upcoming Meetings Found",
+                    value="No upcoming meetings found in the API data. This might be because:\n"
+                          "• The API hasn't been updated with the latest schedule\n"
+                          "• The season has ended\n"
+                          "• Try checking the official F1 website for the latest schedule",
+                    inline=False
+                )
+            
+            embed.set_footer(text="Data from OpenF1 API • Searched current year + 2 years ahead")
+            await ctx.send(embed=embed)
+
     @commands.command(name="f1radio")
     async def f1radio(self, ctx, session_key: str, driver_number: int = None):
         """Get team radio messages for a session, optionally filtered by driver."""
@@ -494,6 +564,7 @@ class F1(commands.Cog):
     @f1drivers.error
     @f1sessions.error
     @f1meetings.error
+    @f1upcoming.error
     @f1laps.error
     @f1weather.error
     @f1telemetry.error

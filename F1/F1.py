@@ -92,7 +92,8 @@ class F1(commands.Cog):
                     else:
                         time_str = f"{hours}h"
                     
-                    upcoming_text += f"**{session['session_name']}** - {session['meeting_name']}\n"
+                    meeting_name = session.get('meeting_name', 'Unknown Meeting')
+                    upcoming_text += f"**{session['session_name']}** - {meeting_name}\n"
                     upcoming_text += f"📅 {session['date_start'].strftime('%Y-%m-%d %H:%M UTC')}\n"
                     upcoming_text += f"⏰ In {time_str} | 🔑 `{session['session_key']}`\n\n"
                 
@@ -106,7 +107,8 @@ class F1(commands.Cog):
             if recent_sessions:
                 recent_text = ""
                 for session in recent_sessions:
-                    recent_text += f"**{session['session_name']}** - {session['meeting_name']}\n"
+                    meeting_name = session.get('meeting_name', 'Unknown Meeting')
+                    recent_text += f"**{session['session_name']}** - {meeting_name}\n"
                     recent_text += f"📅 {session['date_start'].strftime('%Y-%m-%d %H:%M UTC')}\n"
                     recent_text += f"🔑 `{session['session_key']}`\n\n"
                 

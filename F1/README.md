@@ -18,14 +18,13 @@ This cog provides access to real-time and historical Formula 1 data including:
 
 | Command | Description | Usage |
 |---------|-------------|-------|
-| `f1driver` | Get information about a specific F1 driver | `!f1driver <driver_number>` |
-| `f1drivers` | Get all drivers for a session | `!f1drivers [session_key]` |
-| `f1sessions` | Get F1 sessions for a year | `!f1sessions [year]` |
-| `f1laps` | Get lap data for a session | `!f1laps <session_key> [driver_number]` |
-| `f1weather` | Get weather data for a meeting | `!f1weather [meeting_key]` |
-| `f1telemetry` | Get car telemetry data | `!f1telemetry <session_key> <driver_number> [speed_threshold]` |
-| `f1radio` | Get team radio messages | `!f1radio <session_key> [driver_number]` |
-| `f1help` | Show help for F1 commands | `!f1help` |
+| `f1driver` | Get information about a specific F1 driver | `f1driver <driver_number>` |
+| `f1drivers` | Get all drivers for a session | `f1drivers [session_key]` |
+| `f1sessions` | Get F1 sessions for a year | `f1sessions [year]` |
+| `f1laps` | Get lap data for a session | `f1laps <session_key> [driver_number]` |
+| `f1weather` | Get weather data for a meeting | `f1weather [meeting_key]` |
+| `f1telemetry` | Get car telemetry data | `f1telemetry <session_key> <driver_number> [speed_threshold]` |
+| `f1radio` | Get team radio messages | `f1radio <session_key> [driver_number]` |
 
 ## Installation
 
@@ -43,31 +42,31 @@ This cog provides access to real-time and historical Formula 1 data including:
 
 ### Get driver information
 ```
-!f1driver 1
+f1driver 1
 ```
 Shows information about Max Verstappen (driver #1)
 
 ### Get all drivers for the latest session
 ```
-!f1drivers latest
+f1drivers latest
 ```
 Shows all drivers grouped by team for the current/latest session
 
 ### Get lap data for a specific session
 ```
-!f1laps 9159 55
+f1laps 9159 55
 ```
 Shows lap data for session 9159, filtered for driver #55 (Carlos Sainz)
 
 ### Get weather data
 ```
-!f1weather latest
+f1weather latest
 ```
 Shows current weather conditions for the latest meeting
 
 ### Get high-speed telemetry
 ```
-!f1telemetry 9159 55 320
+f1telemetry 9159 55 320
 ```
 Shows telemetry data for driver #55 in session 9159 at speeds ≥320 km/h
 

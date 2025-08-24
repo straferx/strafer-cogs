@@ -313,40 +313,7 @@ class F1(commands.Cog):
             embed.set_footer(text="Data from OpenF1 API")
             await ctx.send(embed=embed)
 
-    @commands.command(name="f1help")
-    async def f1help(self, ctx):
-        """Show help for F1 commands."""
-        embed = discord.Embed(
-            title="🏎️ F1 Cog Help",
-            description="Commands for Formula 1 data using OpenF1 API",
-            color=discord.Color.blue(),
-            timestamp=datetime.utcnow()
-        )
-        
-        commands_info = [
-            ("f1driver <number>", "Get information about a specific F1 driver"),
-            ("f1drivers [session_key]", "Get all drivers for a session (default: latest)"),
-            ("f1sessions [year]", "Get F1 sessions for a year (default: current)"),
-            ("f1laps <session_key> [driver_number]", "Get lap data for a session"),
-            ("f1weather [meeting_key]", "Get weather data for a meeting (default: latest)"),
-            ("f1telemetry <session_key> <driver_number> [speed_threshold]", "Get car telemetry data"),
-            ("f1radio <session_key> [driver_number]", "Get team radio messages"),
-            ("f1help", "Show this help message")
-        ]
-        
-        for cmd, desc in commands_info:
-            embed.add_field(name=f"!{cmd}", value=desc, inline=False)
-            
-        embed.add_field(
-            name="📝 Notes",
-            value="• Use 'latest' for session_key/meeting_key to get current data\n"
-                  "• Speed threshold for telemetry defaults to 300 km/h\n"
-                  "• All data comes from the OpenF1 API",
-            inline=False
-        )
-        
-        embed.set_footer(text="Data from OpenF1 API")
-        await ctx.send(embed=embed)
+
 
     @f1driver.error
     @f1drivers.error

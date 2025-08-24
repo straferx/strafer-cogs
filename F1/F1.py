@@ -123,6 +123,7 @@ class F1(commands.Cog):
                 name="💡 Quick Commands",
                 value="• `f1driver <number>` - Get driver info\n"
                       "• `f1drivers latest` - Current session drivers\n"
+                      "• `f1meetings` - Upcoming races/meetings\n"
                       "• `f1laps <session_key> [driver]` - Lap data\n"
                       "• `f1weather latest` - Current weather\n"
                       "• `f1telemetry <session_key> <driver> [speed]` - Car data\n"
@@ -364,6 +365,81 @@ class F1(commands.Cog):
             embed.set_footer(text="Data from OpenF1 API")
             await ctx.send(embed=embed)
 
+    @commands.command(name="f1meetings")
+    async def f1meetings(self, ctx, year: int = None):
+        """Get F1 meetings/races for a specific year (defaults to current year)."""
+        async with ctx.typing():
+            params = {}
+            if year:
+                params["year"] = year
+                
+            data = await self.fetch_data("meetings", params)
+            
+            if not data:
+                await ctx.send("❌ No meetings found")
+                return
+                
+            # Sort meetings by date
+            for meeting in data:
+                meeting['date_start'] = datetime.fromisoformat(meeting['date_start'].replace('Z', '+00:00'))
+            
+            data.sort(key=lambda x: x['date_start'])
+            
+            # Get upcoming and recent meetings
+            now = datetime.now().replace(tzinfo=None)
+            now = now.replace(tzinfo=timezone.utc)
+            upcoming_meetings = [m for m in data if m['date_start'] > now][:5]
+            recent_meetings = [m for m in data if m['date_start'] <= now][-3:]
+            
+            embed = discord.Embed(
+                title="🏁 F1 Meetings/Races",
+                description=f"Season: {year if year else 'Current'}",
+                color=discord.Color.dark_blue(),
+                timestamp=datetime.utcnow()
+            )
+            
+            # Show upcoming meetings
+            if upcoming_meetings:
+                upcoming_text = ""
+                for meeting in upcoming_meetings:
+                    time_until = meeting['date_start'] - now
+                    days = time_until.days
+                    hours = time_until.seconds // 3600
+                    
+                    if days > 0:
+                        time_str = f"{days}d {hours}h"
+                    else:
+                        time_str = f"{hours}h"
+                    
+                    upcoming_text += f"**{meeting['meeting_name']}**\n"
+                    upcoming_text += f"📍 {meeting.get('circuit_short_name', 'Unknown Circuit')}\n"
+                    upcoming_text += f"📅 {meeting['date_start'].strftime('%Y-%m-%d %H:%M UTC')}\n"
+                    upcoming_text += f"⏰ In {time_str} | 🔑 `{meeting['meeting_key']}`\n\n"
+                
+                embed.add_field(
+                    name="🔄 Upcoming Meetings",
+                    value=upcoming_text,
+                    inline=False
+                )
+            
+            # Show recent meetings
+            if recent_meetings:
+                recent_text = ""
+                for meeting in recent_meetings:
+                    recent_text += f"**{meeting['meeting_name']}**\n"
+                    recent_text += f"📍 {meeting.get('circuit_short_name', 'Unknown Circuit')}\n"
+                    recent_text += f"📅 {meeting['date_start'].strftime('%Y-%m-%d %H:%M UTC')}\n"
+                    recent_text += f"🔑 `{meeting['meeting_key']}`\n\n"
+                
+                embed.add_field(
+                    name="📊 Recent Meetings",
+                    value=recent_text,
+                    inline=False
+                )
+            
+            embed.set_footer(text="Data from OpenF1 API • Use meeting keys for weather data")
+            await ctx.send(embed=embed)
+
     @commands.command(name="f1radio")
     async def f1radio(self, ctx, session_key: str, driver_number: int = None):
         """Get team radio messages for a session, optionally filtered by driver."""
@@ -405,6 +481,7 @@ class F1(commands.Cog):
     @f1driver.error
     @f1drivers.error
     @f1sessions.error
+    @f1meetings.error
     @f1laps.error
     @f1weather.error
     @f1telemetry.error

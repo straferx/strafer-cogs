@@ -21,6 +21,7 @@ This cog provides access to real-time and historical Formula 1 data including:
 | `f1` | Show F1 overview with upcoming sessions and session keys | `f1` |
 | `f1driver` | Get information about a specific F1 driver | `f1driver <driver_number>` |
 | `f1drivers` | Get all drivers for a session | `f1drivers [session_key]` |
+| `f1meetings` | Get F1 meetings/races for a year | `f1meetings [year]` |
 | `f1sessions` | Get F1 sessions for a year | `f1sessions [year]` |
 | `f1laps` | Get lap data for a session | `f1laps <session_key> [driver_number]` |
 | `f1weather` | Get weather data for a meeting | `f1weather [meeting_key]` |

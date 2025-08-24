@@ -8,7 +8,7 @@ from redbot.core import commands
 from redbot.core.bot import Red
 import aiohttp
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 from typing import Optional, List, Dict, Any
 import math
@@ -68,7 +68,7 @@ class F1(commands.Cog):
             # Get upcoming and recent sessions
             now = datetime.now().replace(tzinfo=None)
             # Make now timezone-aware to match session dates
-            now = now.replace(tzinfo=datetime.timezone.utc)
+            now = now.replace(tzinfo=timezone.utc)
             upcoming_sessions = [s for s in data if s['date_start'] > now][:5]
             recent_sessions = [s for s in data if s['date_start'] <= now][-3:]
             

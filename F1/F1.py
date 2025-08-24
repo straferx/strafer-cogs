@@ -67,6 +67,8 @@ class F1(commands.Cog):
             
             # Get upcoming and recent sessions
             now = datetime.now().replace(tzinfo=None)
+            # Make now timezone-aware to match session dates
+            now = now.replace(tzinfo=datetime.timezone.utc)
             upcoming_sessions = [s for s in data if s['date_start'] > now][:5]
             recent_sessions = [s for s in data if s['date_start'] <= now][-3:]
             
